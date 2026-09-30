@@ -1,0 +1,5996 @@
+local localPlayer     = game:GetService("Players").LocalPlayer
+local playerGui       = localPlayer:WaitForChild("PlayerGui")
+local tweenSpeed = 350
+local selectedTarget = nil
+local japaneseMode = false
+local isBloxFruits = false
+local function InitHub()
+    local Players         = game:GetService("Players")
+    local TweenService    = game:GetService("TweenService")
+    local RunService      = game:GetService("RunService")
+    local ReplicatedStorage = game:GetService("ReplicatedStorage")
+    local lp              = Players.LocalPlayer
+
+    -- ============================================================
+    -- GUI SETUP
+    -- ============================================================
+    local screenGui = Instance.new("ScreenGui")
+    screenGui.Name = "FollowGui"
+    screenGui.ResetOnSpawn = false
+    screenGui.DisplayOrder = 100
+    screenGui.Parent = lp:WaitForChild("PlayerGui")
+
+    local mainFrame = Instance.new("Frame", screenGui)
+    mainFrame.Size = UDim2.new(0, 450, 0, 300)
+    mainFrame.Position = UDim2.new(0.3, 0, 0.3, 0)
+    mainFrame.BackgroundColor3 = Color3.fromRGB(25, 10, 35)
+    mainFrame.BackgroundTransparency = 0.3
+    mainFrame.BorderSizePixel = 0
+    mainFrame.ClipsDescendants = true
+    mainFrame.Active = true
+    mainFrame.Draggable = true
+    Instance.new("UICorner", mainFrame).CornerRadius = UDim.new(0, 20)
+
+    local titleBar = Instance.new("Frame", mainFrame)
+    titleBar.Size = UDim2.new(1, 0, 0, 35)
+    titleBar.BackgroundColor3 = Color3.fromRGB(35, 15, 50)
+    Instance.new("UICorner", titleBar).CornerRadius = UDim.new(0, 20)
+
+    local titleLabel = Instance.new("TextLabel", titleBar)
+    titleLabel.Size = UDim2.new(100, 0, 1, 0)
+    titleLabel.Position = UDim2.new(0, 10, 0, 0)
+    titleLabel.BackgroundTransparency = 1
+    titleLabel.Text = "goon hub"
+    titleLabel.TextColor3 = Color3.new(1, 1, 1)
+    titleLabel.Font = Enum.Font.GothamBold
+    titleLabel.TextSize = 20
+    titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+    local closeButton = Instance.new("TextButton", titleBar)
+    closeButton.Size = UDim2.new(0, 30, 0, 30)
+    closeButton.Position = UDim2.new(1, -32, 0, 2)
+    closeButton.BackgroundColor3 = Color3.fromRGB(180, 30, 60)
+    closeButton.TextColor3 = Color3.new(1, 1, 1)
+    closeButton.Text = "×"
+    closeButton.Font = Enum.Font.GothamBold
+    closeButton.TextSize = 40
+    Instance.new("UICorner", closeButton).CornerRadius = UDim.new(1, 0)
+    closeButton.MouseButton1Click:Connect(function() mainFrame.Visible = false end)
+    closeButton.Activated:Connect(function() mainFrame.Visible = false end)
+
+    -- ── Right Content Panel (Home) ────────────────────────────
+    local homeRightPanel = Instance.new("Frame", mainFrame)
+    homeRightPanel.Size = UDim2.new(0, 250, 1, -35)
+    homeRightPanel.Position = UDim2.new(0, 180, 0, 35)
+    homeRightPanel.BackgroundTransparency = 1
+
+    local homeScroll = Instance.new("ScrollingFrame", homeRightPanel)
+    homeScroll.Size = UDim2.new(1, 0, 1, 0)
+    homeScroll.BackgroundTransparency = 1
+    homeScroll.ScrollBarThickness = 6
+    homeScroll.ClipsDescendants = true
+    local homeLayout = Instance.new("UIListLayout", homeScroll)
+    homeLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    homeLayout.Padding = UDim.new(0, 6)
+    local homePadding = Instance.new("UIPadding", homeScroll)
+    homePadding.PaddingTop    = UDim.new(0, 10)
+    homePadding.PaddingBottom = UDim.new(0, 5)
+    homePadding.PaddingLeft   = UDim.new(0, 5)
+    homePadding.PaddingRight  = UDim.new(0, 5)
+
+    -- ── Left Panel (Home: Player selector + speed) ───────────
+    local homeLeftPanel = Instance.new("Frame", mainFrame)
+    homeLeftPanel.Size = UDim2.new(0, 180, 1, -35)
+    homeLeftPanel.Position = UDim2.new(0, 0, 0, 35)
+    homeLeftPanel.BackgroundTransparency = 1
+
+    local selectPlayerBtn = Instance.new("TextButton", homeLeftPanel)
+    selectPlayerBtn.Size = UDim2.new(0, 160, 0, 30)
+    selectPlayerBtn.Position = UDim2.new(0, 10, 0, 10)
+    selectPlayerBtn.BackgroundColor3 = Color3.fromRGB(50, 15, 70)
+    selectPlayerBtn.TextColor3 = Color3.new(1, 1, 1)
+    selectPlayerBtn.Text = "select guy"
+    selectPlayerBtn.Font = Enum.Font.GothamBold
+    selectPlayerBtn.TextSize = 14
+
+    local playerDropdown = Instance.new("ScrollingFrame", homeLeftPanel)
+    playerDropdown.Size = UDim2.new(0, 160, 0, 120)
+    playerDropdown.Position = UDim2.new(0, 10, 0, 40)
+    playerDropdown.BackgroundColor3 = Color3.fromRGB(35, 10, 50)
+    playerDropdown.Visible = false
+    playerDropdown.ClipsDescendants = true
+    playerDropdown.BorderSizePixel = 0
+    playerDropdown.ScrollBarThickness = 6
+    local playerDropdownLayout = Instance.new("UIListLayout", playerDropdown)
+    playerDropdownLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    playerDropdownLayout.Padding = UDim.new(0, 4)
+
+    -- ── Tab Buttons ───────────────────────────────────────────
+    local tabButtonsFrame = Instance.new("Frame", titleBar)
+    tabButtonsFrame.Position = UDim2.new(0, 120, 0, 2)
+    tabButtonsFrame.Size = UDim2.new(0, 300, 1, -4)
+    tabButtonsFrame.BackgroundTransparency = 1
+    tabButtonsFrame.ZIndex = 50
+    local tabButtonsLayout = Instance.new("UIListLayout", tabButtonsFrame)
+    tabButtonsLayout.FillDirection = Enum.FillDirection.Horizontal
+    tabButtonsLayout.HorizontalAlignment = Enum.HorizontalAlignment.Left
+    tabButtonsLayout.VerticalAlignment = Enum.VerticalAlignment.Center
+    tabButtonsLayout.Padding = UDim.new(0, 4)
+
+    local function createTabButton(parent, text)
+        local btn = Instance.new("TextButton", parent)
+        btn.Active = true
+        btn.ZIndex = 51
+        btn.Size = UDim2.new(0.15, 0, 1, -4)
+        btn.BackgroundColor3 = Color3.fromRGB(70, 20, 90)
+        btn.TextColor3 = Color3.new(1, 1, 1)
+        btn.Text = text
+        btn.Font = Enum.Font.GothamBold
+        btn.TextSize = 14
+        Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
+        return btn
+    end
+
+    local homeTab   = createTabButton(tabButtonsFrame, "player")
+    local espTab    = createTabButton(tabButtonsFrame, "esp")
+    local otherTab  = createTabButton(tabButtonsFrame, "general")
+    local bfTab     = createTabButton(tabButtonsFrame, "fun")
+    local farmTab   = createTabButton(tabButtonsFrame, "aim")
+    local configTab = createTabButton(tabButtonsFrame, "others")
+
+    -- ── Tab Panels ────────────────────────────────────────────
+    local espPanel = Instance.new("Frame", mainFrame)
+    local espScroll = Instance.new("ScrollingFrame", espPanel)
+    espScroll.Size = UDim2.new(1, 0, 1, 0)
+    espScroll.BackgroundTransparency = 1
+    espScroll.ScrollBarThickness = 6
+    espScroll.ClipsDescendants = true
+    local espScrollLayout = Instance.new("UIListLayout", espScroll)
+    espScrollLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    espScrollLayout.Padding = UDim.new(0, 6)
+    espPanel.Size = UDim2.new(1, 0, 1, -50)
+    espPanel.Position = UDim2.new(0, 0, 0, 50)
+    espPanel.BackgroundTransparency = 1
+    espPanel.Visible = false
+    local espPanelLayout = Instance.new("UIListLayout", espPanel)
+    espPanelLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    espPanelLayout.Padding = UDim.new(0, 5)
+
+    local otherLeftPanel  = Instance.new("Frame", mainFrame)
+    otherLeftPanel.Size   = UDim2.new(0, 180, 1, -35)
+    otherLeftPanel.Position = UDim2.new(0, 0, 0, 35)
+    otherLeftPanel.BackgroundTransparency = 1
+    otherLeftPanel.Visible = false
+
+    local otherRightPanel = Instance.new("Frame", mainFrame)
+    otherRightPanel.Size   = UDim2.new(0, 250, 1, -35)
+    otherRightPanel.Position = UDim2.new(0, 180, 0, 35)
+    otherRightPanel.BackgroundTransparency = 1
+    otherRightPanel.Visible = false
+
+    local otherLeftScroll = Instance.new("ScrollingFrame", otherLeftPanel)
+    otherLeftScroll.Size = UDim2.new(1, 0, 1, 0)
+    otherLeftScroll.BackgroundTransparency = 1
+    otherLeftScroll.ScrollBarThickness = 6
+    otherLeftScroll.ClipsDescendants = true
+    local otherLeftLayout = Instance.new("UIListLayout", otherLeftScroll)
+    otherLeftLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    otherLeftLayout.Padding = UDim.new(0, 6)
+
+    local otherRightScroll = Instance.new("ScrollingFrame", otherRightPanel)
+    otherRightScroll.Size = UDim2.new(1, 0, 1, 0)
+    otherRightScroll.BackgroundTransparency = 1
+    otherRightScroll.ScrollBarThickness = 6
+    otherRightScroll.ClipsDescendants = true
+    local otherRightLayout = Instance.new("UIListLayout", otherRightScroll)
+    otherRightLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    otherRightLayout.Padding = UDim.new(0, 6)
+
+    local bfLeftPanel  = Instance.new("Frame", mainFrame)
+    bfLeftPanel.Size   = UDim2.new(0, 180, 1, -35)
+    bfLeftPanel.Position = UDim2.new(0, 0, 0, 35)
+    bfLeftPanel.BackgroundTransparency = 1
+    bfLeftPanel.Visible = false
+
+    local bfRightPanel = Instance.new("Frame", mainFrame)
+    bfRightPanel.Size   = UDim2.new(0, 250, 1, -35)
+    bfRightPanel.Position = UDim2.new(0, 180, 0, 35)
+    bfRightPanel.BackgroundTransparency = 1
+    bfRightPanel.Visible = false
+
+    local bfLeftScroll = Instance.new("ScrollingFrame", bfLeftPanel)
+    bfLeftScroll.Size = UDim2.new(1, 0, 1, 0)
+    bfLeftScroll.BackgroundTransparency = 1
+    bfLeftScroll.ScrollBarThickness = 6
+    bfLeftScroll.ClipsDescendants = true
+    local bfLeftLayout = Instance.new("UIListLayout", bfLeftScroll)
+    bfLeftLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    bfLeftLayout.Padding = UDim.new(0, 6)
+
+    local bfRightScroll = Instance.new("ScrollingFrame", bfRightPanel)
+    bfRightScroll.Size = UDim2.new(1, 0, 1, 0)
+    bfRightScroll.BackgroundTransparency = 1
+    bfRightScroll.ScrollBarThickness = 6
+    bfRightScroll.ClipsDescendants = true
+    local bfRightLayout = Instance.new("UIListLayout", bfRightScroll)
+    bfRightLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    bfRightLayout.Padding = UDim.new(0, 6)
+
+    local farmLeftPanel  = Instance.new("Frame", mainFrame)
+    farmLeftPanel.Size   = UDim2.new(0, 180, 1, -35)
+    farmLeftPanel.Position = UDim2.new(0, 0, 0, 35)
+    farmLeftPanel.BackgroundTransparency = 1
+    farmLeftPanel.Visible = false
+
+    local farmRightPanel = Instance.new("Frame", mainFrame)
+    farmRightPanel.Size   = UDim2.new(0, 250, 1, -35)
+    farmRightPanel.Position = UDim2.new(0, 180, 0, 35)
+    farmRightPanel.BackgroundTransparency = 1
+    farmRightPanel.Visible = false
+
+    local farmLeftScroll = Instance.new("ScrollingFrame", farmLeftPanel)
+    farmLeftScroll.Size = UDim2.new(1, 0, 1, 0)
+    farmLeftScroll.BackgroundTransparency = 1
+    farmLeftScroll.ScrollBarThickness = 6
+    farmLeftScroll.ClipsDescendants = true
+    local farmLeftLayout = Instance.new("UIListLayout", farmLeftScroll)
+    farmLeftLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    farmLeftLayout.Padding = UDim.new(0, 6)
+
+    local farmRightScroll = Instance.new("ScrollingFrame", farmRightPanel)
+    farmRightScroll.Size = UDim2.new(1, 0, 1, 0)
+    farmRightScroll.BackgroundTransparency = 1
+    farmRightScroll.ScrollBarThickness = 6
+    farmRightScroll.ClipsDescendants = true
+    local farmRightLayout = Instance.new("UIListLayout", farmRightScroll)
+    farmRightLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    farmRightLayout.Padding = UDim.new(0, 6)
+
+    local configLeftPanel  = Instance.new("Frame", mainFrame)
+    configLeftPanel.Size   = UDim2.new(0, 180, 1, -35)
+    configLeftPanel.Position = UDim2.new(0, 0, 0, 35)
+    configLeftPanel.BackgroundTransparency = 1
+    configLeftPanel.Visible = false
+
+    local configRightPanel = Instance.new("Frame", mainFrame)
+    configRightPanel.Size   = UDim2.new(0, 250, 1, -35)
+    configRightPanel.Position = UDim2.new(0, 180, 0, 35)
+    configRightPanel.BackgroundTransparency = 1
+    configRightPanel.Visible = false
+
+    local configLeftScroll = Instance.new("ScrollingFrame", configLeftPanel)
+    configLeftScroll.Size = UDim2.new(1, 0, 1, 0)
+    configLeftScroll.BackgroundTransparency = 1
+    configLeftScroll.ScrollBarThickness = 6
+    configLeftScroll.ClipsDescendants = true
+    local configLeftLayout = Instance.new("UIListLayout", configLeftScroll)
+    configLeftLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    configLeftLayout.Padding = UDim.new(0, 6)
+
+    local configRightScroll = Instance.new("ScrollingFrame", configRightPanel)
+    configRightScroll.Size = UDim2.new(1, 0, 1, 0)
+    configRightScroll.BackgroundTransparency = 1
+    configRightScroll.ScrollBarThickness = 6
+    configRightScroll.ClipsDescendants = true
+    local configRightLayout = Instance.new("UIListLayout", configRightScroll)
+    configRightLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    configRightLayout.Padding = UDim.new(0, 6)
+
+    -- ── Extra GUIs ────────────────────────────────────────────
+    local tpGui = Instance.new("ScreenGui")
+    tpGui.Name = "TPGui"
+    tpGui.ResetOnSpawn = false
+    tpGui.Parent = lp:WaitForChild("PlayerGui")
+    tpGui.Enabled = false
+
+    local statsGui = Instance.new("ScreenGui")
+    statsGui.Name = "StatsGui"
+    statsGui.ResetOnSpawn = false
+    statsGui.Parent = lp:WaitForChild("PlayerGui")
+    statsGui.Enabled = false
+
+    local statsFrame = Instance.new("Frame", statsGui)
+    statsFrame.Size = UDim2.new(0, 320, 0, 30)
+    statsFrame.Position = UDim2.new(0.03, 0, 0, 40)
+    statsFrame.BackgroundColor3 = Color3.fromRGB(50, 20, 65)
+    statsFrame.BackgroundTransparency = 0.2
+    statsFrame.Active = true
+    Instance.new("UICorner", statsFrame).CornerRadius = UDim.new(0, 12)
+
+    local statsLabel = Instance.new("TextLabel", statsFrame)
+    statsLabel.Size = UDim2.new(1, 0, 1, 0)
+    statsLabel.BackgroundTransparency = 1
+    statsLabel.Font = Enum.Font.GothamBold
+    statsLabel.TextSize = 14
+    statsLabel.TextColor3 = Color3.new(1, 1, 1)
+    statsLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+    -- ── Tab Switch ────────────────────────────────────────────
+    local function switchTab(tab)
+        homeLeftPanel.Visible   = tab == "player"
+        homeRightPanel.Visible  = tab == "player"
+        espPanel.Visible        = tab == "ESP"
+        otherLeftPanel.Visible  = tab == "general"
+        otherRightPanel.Visible = tab == "general"
+        bfLeftPanel.Visible     = tab == "funny"
+        bfRightPanel.Visible    = tab == "funny"
+        farmLeftPanel.Visible   = tab == "aim"
+        farmRightPanel.Visible  = tab == "aim"
+        configLeftPanel.Visible  = tab == "others"
+        configRightPanel.Visible = tab == "others"
+    end
+
+    homeTab.Activated:Connect(function() switchTab("player") end); homeTab.MouseButton1Click:Connect(function() switchTab("player") end)
+    espTab.Activated:Connect(function() switchTab("ESP") end); espTab.MouseButton1Click:Connect(function() switchTab("ESP") end)
+    otherTab.Activated:Connect(function() switchTab("general") end); otherTab.MouseButton1Click:Connect(function() switchTab("general") end)
+    bfTab.Activated:Connect(function() switchTab("funny") end); bfTab.MouseButton1Click:Connect(function() switchTab("funny") end)
+    farmTab.Activated:Connect(function() switchTab("aim") end); farmTab.MouseButton1Click:Connect(function() switchTab("aim") end)
+    configTab.Activated:Connect(function() switchTab("others") end); configTab.MouseButton1Click:Connect(function() switchTab("others") end)
+    switchTab("player")
+
+    -- ── Speed Input ───────────────────────────────────────────
+    local speedLabel = Instance.new("TextLabel", homeLeftPanel)
+    speedLabel.Size = UDim2.new(0, 80, 0, 30)
+    speedLabel.Position = UDim2.new(0, 10, 0, 180)
+    speedLabel.BackgroundTransparency = 1
+    speedLabel.Text = "Fly Speed:"
+    speedLabel.TextColor3 = Color3.new(1, 1, 1)
+    speedLabel.Font = Enum.Font.GothamBold
+    speedLabel.TextSize = 14
+    speedLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+    local speedInput = Instance.new("TextBox", homeLeftPanel)
+    speedInput.Size = UDim2.new(0, 80, 0, 30)
+    speedInput.Position = UDim2.new(0, 60, 0, 180)
+    speedInput.BackgroundColor3 = Color3.fromRGB(55, 15, 75)
+    speedInput.TextColor3 = Color3.new(1, 1, 1)
+    speedInput.Text = tostring(tweenSpeed)
+    speedInput.Font = Enum.Font.GothamBold
+    speedInput.TextSize = 14
+    speedInput.ClearTextOnFocus = false
+    speedInput.FocusLost:Connect(function()
+        local val = tonumber(speedInput.Text)
+        if val and val > 0 then tweenSpeed = val; local runtime = getgenv and getgenv().__VictimHubRuntime; local settings = runtime and runtime.Settings; if settings then settings.FlySpeed = val; settings.MobileFlySpeed = val end end
+    end)
+
+    -- ── Toggle Button ─────────────────────────────────────────
+    local toggleButton = Instance.new("ImageButton")
+    toggleButton.Size = UDim2.new(0, 50, 0, 50)
+    toggleButton.Position = UDim2.new(0, 100, 0, 100)
+    toggleButton.BackgroundTransparency = 1
+    toggleButton.Image = "rbxassetid://77483489856198"
+    toggleButton.Parent = screenGui
+    toggleButton.Active = true
+    toggleButton.Selectable = true
+    toggleButton.ZIndex = 100
+    toggleButton.Active = true
+    toggleButton.Draggable = true
+    Instance.new("UICorner", toggleButton).CornerRadius = UDim.new(0.25, 0)
+    local logoToggleBusy = false
+    local function toggleMainFrame()
+        if logoToggleBusy then return end
+        logoToggleBusy = true
+        mainFrame.Visible = not mainFrame.Visible
+        task.defer(function() logoToggleBusy = false end)
+    end
+    toggleButton.Activated:Connect(toggleMainFrame)
+    toggleButton.MouseButton1Click:Connect(toggleMainFrame)
+
+    -- ── Notification ──────────────────────────────────────────
+    local function showNotification(textEn, textJp, color)
+        local notifFrame = Instance.new("Frame")
+        notifFrame.Size = UDim2.new(0, 200, 0, 60)
+        notifFrame.Position = UDim2.new(1, 210, 0, -70)
+        notifFrame.BackgroundColor3 = Color3.fromRGB(45, 15, 60)
+        notifFrame.BackgroundTransparency = 0.2
+        notifFrame.BorderSizePixel = 0
+        notifFrame.Parent = screenGui
+        Instance.new("UICorner", notifFrame).CornerRadius = UDim.new(0.25, 0)
+        local notifLabel = Instance.new("TextLabel", notifFrame)
+        notifLabel.Size = UDim2.new(0.9, 0, 0.9, 0)
+        notifLabel.Position = UDim2.new(0.05, 0, 0.05, 0)
+        notifLabel.BackgroundTransparency = 1
+        notifLabel.Text = japaneseMode and textJp or textEn
+        notifLabel.TextColor3 = color
+        notifLabel.Font = Enum.Font.GothamBold
+        notifLabel.TextSize = 16
+        notifLabel.TextXAlignment = Enum.TextXAlignment.Left
+        notifLabel.TextYAlignment = Enum.TextYAlignment.Top
+        local tweenIn = TweenService:Create(notifFrame, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+            Position = UDim2.new(1, -210, 1, -70)
+        })
+        tweenIn:Play()
+        tweenIn.Completed:Connect(function()
+            task.delay(3, function()
+                local tweenOut = TweenService:Create(notifFrame, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+                    Position = UDim2.new(1, 210, 1, -70)
+                })
+                tweenOut:Play()
+                tweenOut.Completed:Connect(function() notifFrame:Destroy() end)
+            end)
+        end)
+    end
+
+    -- ── Blox Fruits Detection ─────────────────────────────────
+    local placeId        = game.PlaceId
+    local seaVersion     = nil
+    local safeZones      = {}
+    local tpPos1         = nil
+    local tpPos2         = nil
+
+    if placeId == 4442272183 or placeId == 79091703265657 then
+        showNotification("Success!\nBlox Fruits Mode ON(2nd)", "", Color3.fromRGB(255, 255, 255))
+        safeZones = {
+            Vector3.new(-287, 305.9, 597.6),
+            Vector3.new(2284.9, 14.9, 905.8),
+            Vector3.new(923.2, 124.8, 32852.8),
+            Vector3.new(-6508.6, 82, -132.8)
+        }
+        tpPos1 = Vector3.new(-287, 306.5, 597.9)
+        tpPos2 = Vector3.new(938, 252.7, 32888)
+        isBloxFruits = true
+        seaVersion = "2nd"
+    elseif placeId == 7449423635 then
+        showNotification("Success!\nBlox Fruits Mode ON(3rd)", "", Color3.fromRGB(255, 255, 255))
+        safeZones = {
+            Vector3.new(-12471, 374, -7554),
+            Vector3.new(5659, 1013, -341),
+            Vector3.new(-5056, 315, -3180),
+            Vector3.new(-12001, 332, -8861),
+            Vector3.new(5319, 23, -93),
+            Vector3.new(28286, 14897, 103)
+        }
+        tpPos1 = Vector3.new(-12471, 374, -7554)
+        tpPos2 = Vector3.new(-12560, 460, -7482)
+        isBloxFruits = true
+        seaVersion = "3rd"
+    end
+
+    -- ── Refresh Player List ───────────────────────────────────
+    local function refreshPlayerList()
+        for _, child in ipairs(playerDropdown:GetChildren()) do
+            if child:IsA("TextButton") then child:Destroy() end
+        end
+        for _, p in ipairs(Players:GetPlayers()) do
+            if p ~= lp then
+                local btn = Instance.new("TextButton")
+                btn.Size = UDim2.new(1, -10, 0, 30)
+                btn.Position = UDim2.new(0, 5, 0, 0)
+                btn.BackgroundColor3 = Color3.fromRGB(55, 15, 75)
+                btn.TextColor3 = Color3.new(1, 1, 1)
+                btn.Text = p.Name
+                btn.Font = Enum.Font.GothamBold
+                btn.TextSize = 14
+                btn.AutoButtonColor = true
+                btn.Parent = playerDropdown
+                btn.MouseButton1Click:Connect(function()
+                    selectedTarget = p
+                    local runtime = getgenv and getgenv().__VictimHubRuntime
+                    if runtime and runtime.S then runtime.S.SelectedPlayerName = p.Name end
+                    selectPlayerBtn.Text = "Target: " .. p.Name
+                    playerDropdown.Visible = false
+                end)
+            end
+        end
+        local layout = playerDropdown:FindFirstChildOfClass("UIListLayout")
+        if not layout then
+            layout = Instance.new("UIListLayout")
+            layout.Parent = playerDropdown
+            layout.SortOrder = Enum.SortOrder.LayoutOrder
+            layout.Padding = UDim.new(0, 4)
+        end
+        playerDropdown.CanvasSize = UDim2.new(0, 0, 0, layout.AbsoluteContentSize.Y)
+        playerDropdown.Visible = false
+    end
+
+    selectPlayerBtn.MouseButton1Click:Connect(function()
+        playerDropdown.Visible = not playerDropdown.Visible
+    end)
+
+    -- ── UI Component Factories ────────────────────────────────
+    local toggleSetters = {}
+    local sliderResetters = {}
+    local function createToggle(parent, label, default, callback)
+        local frame = Instance.new("Frame", parent)
+        frame.Size = UDim2.new(1, -10, 0, 30)
+        frame.BackgroundTransparency = 0.5
+        frame.BackgroundColor3 = Color3.fromRGB(15, 5, 25)
+        Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 13)
+
+        local textLabel = Instance.new("TextLabel", frame)
+        textLabel.Size = UDim2.new(0.6, 0, 1, 0)
+        textLabel.BackgroundTransparency = 1
+        textLabel.Text = label
+        textLabel.TextXAlignment = Enum.TextXAlignment.Left
+        textLabel.Font = Enum.Font.GothamBold
+        textLabel.TextSize = 14
+        textLabel.TextColor3 = Color3.new(1, 1, 1)
+
+        local switchBase = Instance.new("Frame", frame)
+        switchBase.Size = UDim2.new(0, 50, 0, 24)
+        switchBase.Position = UDim2.new(1, -60, 0.5, -12)
+        switchBase.BackgroundColor3 = Color3.fromRGB(30, 10, 45)
+        switchBase.BackgroundTransparency = 0.3
+        switchBase.Name = "SwitchBase"
+        Instance.new("UICorner", switchBase).CornerRadius = UDim.new(1, 0)
+
+        local knob = Instance.new("Frame", switchBase)
+        knob.Size = UDim2.new(0, 20, 0, 20)
+        knob.Position = UDim2.new(0, 2, 0.5, -10)
+        knob.BackgroundColor3 = Color3.new(1, 1, 1)
+        Instance.new("UICorner", knob).CornerRadius = UDim.new(1, 0)
+
+        local state = default or false
+        local function updateVisual()
+            if state then
+                switchBase.BackgroundColor3 = Color3.fromRGB(200, 30, 80)
+                knob:TweenPosition(UDim2.new(1, -22, 0.5, -10), "Out", "Quad", 0.2, true)
+            else
+                switchBase.BackgroundColor3 = Color3.fromRGB(30, 10, 45)
+                knob:TweenPosition(UDim2.new(0, 2, 0.5, -10), "Out", "Quad", 0.2, true)
+            end
+        end
+
+        toggleSetters[#toggleSetters + 1] = function(value) state = value; updateVisual(); if callback then callback(value) end end
+        switchBase.InputBegan:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                state = not state
+                updateVisual()
+                if callback then callback(state) end
+            end
+        end)
+        updateVisual()
+        return frame
+    end
+
+    local function createButton(parent, label)
+        local btn = Instance.new("TextButton")
+        btn.Size = UDim2.new(1, -10, 0, 30)
+        btn.BackgroundColor3 = Color3.fromRGB(140, 20, 60)
+        btn.BackgroundTransparency = 0.3
+        btn.TextColor3 = Color3.new(1, 1, 1)
+        btn.Text = label
+        btn.Font = Enum.Font.GothamBold
+        btn.TextSize = 14
+        btn.Parent = parent
+        Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 13)
+        return btn
+    end
+
+    local function createInput(parent, label, default, callback)
+        local frame = Instance.new("Frame", parent)
+        frame.Size = UDim2.new(1, -10, 0, 30)
+        frame.BackgroundTransparency = 0.5
+        frame.BackgroundColor3 = Color3.fromRGB(15, 5, 25)
+        Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 13)
+
+        local textLabel = Instance.new("TextLabel", frame)
+        textLabel.Size = UDim2.new(0.6, 0, 1, 0)
+        textLabel.BackgroundTransparency = 1
+        textLabel.Text = label
+        textLabel.TextXAlignment = Enum.TextXAlignment.Left
+        textLabel.Font = Enum.Font.GothamBold
+        textLabel.TextSize = 14
+        textLabel.TextColor3 = Color3.new(1, 1, 1)
+
+        local textBox = Instance.new("TextBox", frame)
+        textBox.Size = UDim2.new(0, 50, 0, 24)
+        textBox.Position = UDim2.new(1, -60, 0.5, -12)
+        textBox.BackgroundColor3 = Color3.fromRGB(80, 25, 100)
+        textBox.BackgroundTransparency = 0.3
+        textBox.Text = default or ""
+        textBox.Font = Enum.Font.GothamBold
+        textBox.TextSize = 14
+        textBox.TextColor3 = Color3.new(1, 1, 1)
+        textBox.PlaceholderText = "enter..."
+        textBox.ClearTextOnFocus = false
+        Instance.new("UICorner", textBox).CornerRadius = UDim.new(1, 0)
+        textBox.FocusLost:Connect(function()
+            if callback then callback(textBox.Text) end
+        end)
+        return frame
+    end
+
+    local function createSlider(parent, label, min, max, default, callback, step)
+        local frame = Instance.new("Frame", parent)
+        frame.Size = UDim2.new(1, -10, 0, 44)
+        frame.BackgroundTransparency = 0.5
+        frame.BackgroundColor3 = Color3.fromRGB(15, 5, 25)
+        Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 13)
+        local textLabel = Instance.new("TextLabel", frame)
+        textLabel.Size = UDim2.new(1, -10, 0, 18)
+        textLabel.Position = UDim2.new(0, 8, 0, 2)
+        textLabel.BackgroundTransparency = 1
+        textLabel.Text = label .. ": " .. tostring(default)
+        textLabel.TextXAlignment = Enum.TextXAlignment.Left
+        textLabel.Font = Enum.Font.GothamBold
+        textLabel.TextSize = 13
+        textLabel.TextColor3 = Color3.new(1, 1, 1)
+        local track = Instance.new("Frame", frame)
+        track.Size = UDim2.new(1, -16, 0, 8)
+        track.Position = UDim2.new(0, 8, 0, 26)
+        track.BackgroundColor3 = Color3.fromRGB(50, 20, 65)
+        track.BorderSizePixel = 0
+        Instance.new("UICorner", track).CornerRadius = UDim.new(1, 0)
+        local fill = Instance.new("Frame", track)
+        fill.Size = UDim2.new((default - min)/(max - min), 0, 1, 0)
+        fill.BackgroundColor3 = Color3.fromRGB(200, 30, 80)
+        fill.BorderSizePixel = 0
+        Instance.new("UICorner", fill).CornerRadius = UDim.new(1, 0)
+        local value = default
+        local dragging = false
+        local function updateSlider(x)
+            local rel = math.clamp((x - track.AbsolutePosition.X) / track.AbsoluteSize.X, 0, 1)
+            value = math.floor((min + rel * (max - min)) / (step or 1) + 0.5) * (step or 1)
+            fill.Size = UDim2.new(rel, 0, 1, 0)
+            textLabel.Text = label .. ": " .. tostring(value)
+            if callback then callback(value) end
+        end
+        sliderResetters[#sliderResetters + 1] = function() updateSlider(track.AbsolutePosition.X + track.AbsoluteSize.X * math.clamp((default - min) / math.max(max - min, 1), 0, 1)) end
+        track.InputBegan:Connect(function(i)
+            if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+                dragging = true; updateSlider(i.Position.X)
+            end
+        end)
+        game:GetService("UserInputService").InputChanged:Connect(function(i)
+            if dragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then
+                updateSlider(i.Position.X)
+            end
+        end)
+        game:GetService("UserInputService").InputEnded:Connect(function(i)
+            if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then dragging = false end
+        end)
+        return frame
+    end
+
+    local function createLabel(parent, text)
+        local lbl = Instance.new("TextLabel", parent)
+        lbl.Size = UDim2.new(1, -10, 0, 20)
+        lbl.BackgroundTransparency = 1
+        lbl.Text = text
+        lbl.TextColor3 = Color3.fromRGB(200, 150, 220)
+        lbl.Font = Enum.Font.GothamBold
+        lbl.TextSize = 13
+        lbl.TextXAlignment = Enum.TextXAlignment.Left
+        return lbl
+    end
+
+
+-- Deobfuscated by ccjvwsod on Discord
+-- Detected obfuscation: Luraph v15
+-- Local names are inferred from use (the original names are not in the bytecode)
+
+local bxor_
+bxor_ = nil
+
+pcall(function()
+	bxor_ = bit32.bxor
+end)
+
+local flag = not bxor_
+
+if flag then
+	pcall(function()
+		bxor_ = bit.bxor
+	end)
+end
+
+if flag then
+	pcall(function()
+		bxor_ = bxor
+	end)
+end
+
+if flag then
+	bxor_ = function(arg, arg2)
+		local n = 0
+		local n2 = 1
+
+		while arg > 0 or arg2 > 0 do
+			if arg % 2 ~= arg2 % 2 then
+				n += n2
+			end
+
+			arg = math.floor(arg / 2)
+			arg2 = math.floor(arg2 / 2)
+			n2 *= 2
+		end
+
+		return n
+	end
+end
+
+local genv
+ genv = getgenv and getgenv() or _G
+local victimHubRuntime = genv.__VictimHubRuntime
+
+if victimHubRuntime and type(victimHubRuntime.Dispose) == "function" then
+	pcall(function()
+		victimHubRuntime:Dispose("reexecute")
+	end)
+end
+
+local victimHubRuntime2
+victimHubRuntime2 = nil
+
+-- Local feature configuration with conservative defaults and runtime
+-- discovery for supported game remotes.
+local tbl = {
+	Alive = true,
+	Interval = 30,
+	RP = {
+		x7a3 = "RE/RegisterAttack",
+		k2f9 = "RE/RegisterHit",
+		r5f6 = "RE/ShootGunEvent",
+		m3c1 = "CommF_",
+		p8d2 = "CommE",
+		n9e4 = "Validator",
+	},
+	CR = {
+		b7n = { string.byte("RE/RegisterHit", 1, -1) },
+		p1x = 909090,
+		m2v = 2,
+	},
+	CF = {},
+	TP = {},
+}
+
+local function findChild(parent, names)
+	if not parent then
+		return nil
+	end
+	for _, childName in ipairs(names) do
+		local child = parent:FindFirstChild(childName)
+		if child then
+			return child
+		end
+	end
+	return nil
+end
+
+victimHubRuntime2 = {
+	Alive = true,
+	Disposed = false,
+	Version = string.format("%d-%d", math.floor(os.clock() * 1000), math.random(100000, 999999)),
+	Connections = {},
+	ConnectionIndex = {},
+	Instances = {},
+	InstanceIndex = {},
+	PropertyRestores = {},
+	Library = nil,
+	Cleanup = nil,
+	S = {
+		CachedSeed = 0,
+		DragonReady = false,
+		lastV4 = 0,
+		PanicFleeGen = 0,
+		PanicFleeRunning = false,
+		PanicFleeOnCooldown = false,
+		PanicFleeNextRun = 0,
+		FlagTargets = {},
+		FlagPayloadByTimeValue = {},
+		LFF2 = 0,
+		LSF2 = 0,
+	},
+	TrackConnection = function(arg, arg2)
+		if arg2 and not arg.ConnectionIndex[arg2] then
+			arg.Connections[#arg.Connections + 1] = arg2
+			arg.ConnectionIndex[arg2] = #arg.Connections
+		end
+
+		return arg2
+	end,
+	UntrackConnection = function(arg, arg2)
+		local v = arg2 and arg.ConnectionIndex[arg2]
+		if not v then
+			return
+		end
+		local n = #arg.Connections
+		local v2 = arg.Connections[n]
+		arg.Connections[v] = v2
+
+		if v2 then
+			arg.ConnectionIndex[v2] = v
+		end
+
+		arg.Connections[n] = nil
+		arg.ConnectionIndex[arg2] = nil
+	end,
+	TrackInstance = function(arg, arg2)
+		if arg2 and not arg.InstanceIndex[arg2] then
+			arg.Instances[#arg.Instances + 1] = arg2
+			arg.InstanceIndex[arg2] = #arg.Instances
+		end
+
+		return arg2
+	end,
+	UntrackInstance = function(arg, arg2)
+		local v = arg2 and arg.InstanceIndex[arg2]
+		if not v then
+			return
+		end
+		local n = #arg.Instances
+		local v2 = arg.Instances[n]
+		arg.Instances[v] = v2
+
+		if v2 then
+			arg.InstanceIndex[v2] = v
+		end
+
+		arg.Instances[n] = nil
+		arg.InstanceIndex[arg2] = nil
+	end,
+	Override = function(arg, arg2, arg3, arg4)
+		if not arg2 then
+			return
+		end
+		local tbl2 = arg.PropertyRestores[arg2]
+
+		if not tbl2 then
+			tbl2 = {}
+			arg.PropertyRestores[arg2] = tbl2
+		end
+
+		if tbl2[arg3] == nil then
+			local ok, result = pcall(function()
+				return arg2[arg3]
+			end)
+
+			if ok then
+				tbl2[arg3] = result
+			end
+		end
+
+		pcall(function()
+			arg2[arg3] = arg4
+		end)
+	end,
+	Dispose = function(arg, arg2)
+		if arg.Disposed then
+			return
+		end
+		arg.Disposed = true
+		arg.Alive = false
+
+		if arg.Cleanup then
+			pcall(arg.Cleanup, arg2)
+		end
+
+		for i = #arg.Connections, 1, -1 do
+			local v = arg.Connections[i]
+
+			pcall(function()
+				v:Disconnect()
+			end)
+
+			arg.Connections[i] = nil
+			arg.ConnectionIndex[v] = nil
+		end
+
+		table.clear(arg.ConnectionIndex)
+
+		for k, propertyRestore in pairs(arg.PropertyRestores) do
+			if k and k.Parent then
+				for k2, v in pairs(propertyRestore) do
+					pcall(function()
+						k[k2] = v
+					end)
+				end
+			end
+		end
+
+		table.clear(arg.PropertyRestores)
+
+		for i = #arg.Instances, 1, -1 do
+			local v = arg.Instances[i]
+
+			if v and v.Parent then
+				pcall(function()
+					v:Destroy()
+				end)
+			end
+
+			arg.Instances[i] = nil
+			arg.InstanceIndex[v] = nil
+		end
+
+		table.clear(arg.InstanceIndex)
+
+		if arg.Library and not arg.Library.Unloaded then
+			pcall(function()
+				arg.Library:Unload()
+			end)
+		end
+
+		if genv.__VictimHubRuntime == arg then
+			genv.__VictimHubRuntime = nil
+		end
+	end,
+}
+
+genv.__VictimHubRuntime = victimHubRuntime2
+Players = game:GetService("Players")
+local UserInputService
+UserInputService = game:GetService("UserInputService")
+local RunService
+RunService = game:GetService("RunService")
+local ReplicatedStorage
+ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TweenService
+TweenService = game:GetService("TweenService")
+local v2
+v2 = workspace
+local localPlayer
+localPlayer = Players.LocalPlayer
+local flag2
+flag2 = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
+local module, fn3, v3, v4, v5, v6, b7n, p1x, m2v, tbl2
+local fn4, fn5, name, fn6, fn7, fn8, fn9, fn10, fn11, tbl3
+local flag3, fn12, fn13, fn14, v7, v8, fn15
+
+do
+	local net = ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Net")
+	module = require(net)
+
+	fn3 = cloneref or function(arg)
+		return arg
+	end
+
+	local remotes = ReplicatedStorage:FindFirstChild("Remotes")
+	v3 = findChild(net, { tbl.RP.x7a3, "RE/RegisterAttack", "RE/RegisterHit" })
+	v4 = findChild(net, { tbl.RP.k2f9, "RE/RegisterHit", "RE/RegisterAttack" })
+	v5 = findChild(remotes, { tbl.RP.m3c1, "CommF_" })
+	v6 = findChild(remotes, { tbl.RP.p8d2, "CommE" })
+	local v9 = findChild(net, { tbl.RP.r5f6, "RE/ShootGunEvent", "RE/RegisterHit" })
+	local v10 = findChild(remotes, { tbl.RP.n9e4, "Validator", "CommE" })
+	local validator = remotes and remotes:FindFirstChild("Validator")
+
+	if not (v3 and v4 and v5 and v6 and v9 and v10) then
+		warn("[VictimHub] Some game remotes were not found; affected features will be inactive.")
+	end
+
+	b7n = tbl.CR.b7n or { string.byte("RE/RegisterHit", 1, -1) }
+	p1x = tbl.CR.p1x or 909090
+	m2v = tbl.CR.m2v or 2
+
+	tbl2 = {
+		Fly = false,
+		AutoHaki = false,
+		AutoKen = false,
+		AutoV4 = false,
+		AutoPvP = false,
+		FruitM1 = false,
+		NoPredict = false,
+		TweenToPlayer = false,
+		TweenToNearest = false,
+		TweenToPortal = false,
+		ESP = false,
+		PredictionSamples = 3,
+		PredictionSampleInterval = 0.03,
+		PredictionTime = 0.1,
+		YOffset = tbl.CF and tbl.CF.m8z or 100,
+		TeleportOffsetX = tbl.TP and tbl.TP.ox or tbl.CF and tbl.CF.ox or 0,
+		TeleportOffsetZ = tbl.TP and tbl.TP.oz or tbl.CF and tbl.CF.oz or 0,
+		CircleRadius = tbl.CF and tbl.CF.p3k or 67,
+		IsRunning = true,
+		AntiStun = false,
+		CircleTarget = false,
+		TweenSpeed = tbl.CF and tbl.CF.t2w or 300,
+		FlySpeed = tbl.CF and tbl.CF.f9s or 300,
+		MinPlayerLevel = tbl.CF and tbl.CF.l4p or 2300,
+		InstaMaxJump = 10000,
+		V4Cooldown = tbl.CF and tbl.CF.v4c or 0.4,
+		FruitM1Cooldown = 0,
+		MobBringRange = 300,
+		MobBringHold = 5,
+		PermanentMobBring = false,
+		AutoV3 = false,
+		V3CheckInterval = 1,
+		InfiniteJump = false,
+		InfJumpMultiplier = 1.5,
+		DodgeNoCooldown = false,
+		DashLength = 50,
+		RemoveAnimations = false,
+		RemoveGhostShip = false,
+		WalkOnWater = false,
+		CameraMaxZoom = 128,
+		FPSCap = 999,
+		MobileFlyDivisor = 16,
+		MobileFlyVerticalSpeed = 1,
+		MobileFlySpeed = 50,
+		FlyPanelOnPC = false,
+		DragonstormRange = tbl.CF and tbl.CF.d8n or 500,
+		DragonstormAuraV1 = false,
+		DragonstormAuraV2 = false,
+		InstaSnapDistance = tbl.CF and tbl.CF.i6d or 167,
+		MovementMode = "Hybrid",
+		TweenMaxRange = 20000,
+		TweenRecalcThreshold = 25,
+		TweenMinDuration = 0.01,
+		CircleOrbitSpeed = 5,
+		HakiCheckInterval = 0.2,
+		KenCheckInterval = 5,
+		PvPEnableInterval = 30,
+		SeedPollInterval = 1,
+		DragonInitRetryInterval = 2,
+		FlyGyroStiffness = 90000,
+		FlyRespawnDelay = 0.5,
+		SkillRedirectSkill = false,
+		SkillRedirectMode = "Nearest Player",
+		SkillRedirectFOV = 100,
+		SkillRedirectM1 = false,
+		SkillRedirectSkills = { Z = true, X = true, C = true, V = true, F = true },
+		SkillRedirectTargetPlayers = false,
+		SkillRedirectTargetMobs = false,
+		SkillRedirectTeamCheck = false,
+		SkillRedirectExcludePVP = true,
+		SkillRedirectTweenAim = false,
+		SkillRedirectShowFOV = false,
+		SkillRedirectFOVMode = "Follow Mouse",
+		SkillRedirectShowLine = false,
+		SkillRedirectPart = "HumanoidRootPart",
+		SkillRedirectSelectedPlayer = "",
+		SkillRedirectColorR = 255,
+		SkillRedirectColorG = 0,
+		SkillRedirectColorB = 0,
+		ESPColorR = 219,
+		ESPColorG = 68,
+		ESPColorB = 103,
+		ESPShowLevel = true,
+		ESPShowBounty = true,
+		ESPShowFruit = false,
+		ESPShowPvP = true,
+		ESPHighlight = false,
+		ESPMaxDistance = 200000,
+		ESPStrokeColorR = 26,
+		ESPStrokeColorG = 26,
+		ESPStrokeColorB = 30,
+		ESPSizeX = 200,
+		ESPSizeY = 50,
+		ESPStudsOffset = 2,
+		ESPTextSize = 13,
+		ESPStrokeTransparency = 0.2,
+		ESPStrokeThickness = 2,
+		ESPStrokeUITransparency = 0.25,
+		ESPUpdateInterval = 0.1,
+		PortalESP = false,
+		PortalESPUpdateInterval = 0.25,
+		PortalESPMaxDistance = 200000,
+		PanicFlee = false,
+		PanicFleeCooldown = 10,
+		PanicFleeHealthThreshold = 5500,
+		PanicFleeResetHealth = 7000,
+		PanicFleeAttempts = 5,
+		BountyMinBounty = 100000000,
+		BountyMaxPages = 100,
+		BountyScanTimeout = 15,
+		BountyTeleportRetryWait = 12,
+		BountyPostTeleportWait = 3,
+		BountyMaxJoinAttempts = 10,
+	}
+
+	victimHubRuntime2.Settings = tbl2
+	local tbl4 = {}
+
+	fn4 = function(arg)
+		local v11 = tbl4[arg]
+
+		if not v11 or v11.Parent ~= v2 then
+			local v12 = v2:FindFirstChild(arg)
+			tbl4[arg] = v12
+			v11 = v12
+		end
+
+		return v11
+	end
+
+	local tbl5 = {}
+
+	fn5 = function(arg)
+		local v11 = fn4(arg)
+		if not v11 then
+			return nil
+		end
+		local v12 = tbl5[arg]
+		if v12 and v12.folder == v11 then
+			return v12.list
+		end
+
+		if v12 then
+			for _, conn in ipairs(v12.conns) do
+				victimHubRuntime2:UntrackConnection(conn)
+				conn:Disconnect()
+			end
+		end
+
+		local tbl6 = { folder = v11, list = {}, conns = {} }
+		tbl5[arg] = tbl6
+		local list = tbl6.list
+
+		for _, child in ipairs(v11:GetChildren()) do
+			list[#list + 1] = child
+		end
+
+		tbl6.conns[#tbl6.conns + 1] = victimHubRuntime2:TrackConnection(v11.ChildAdded:Connect(function(child)
+			list[#list + 1] = child
+		end))
+
+		tbl6.conns[#tbl6.conns + 1] = victimHubRuntime2:TrackConnection(v11.ChildRemoved:Connect(function(child)
+			for i = #list, 1, -1 do
+				if list[i] == child then
+					table.remove(list, i)
+					break
+				end
+			end
+		end))
+
+		return list
+	end
+
+	name = nil
+	victimHubRuntime2.S.SelectedPlayerName = nil
+	victimHubRuntime2.S.CachedSelectedPlayerName = nil
+	victimHubRuntime2.S.CachedSelectedPlayer = nil
+	victimHubRuntime2.S.CurrentTargetPlayer = nil
+	victimHubRuntime2.S.ActiveTween = nil
+	victimHubRuntime2.S.SpectateEnabled = false
+
+	fn6 = function()
+		local selectedName = victimHubRuntime2.S.SelectedPlayerName or name
+		if victimHubRuntime2.S.CachedSelectedPlayerName ~= selectedName or victimHubRuntime2.S.CachedSelectedPlayer and victimHubRuntime2.S.CachedSelectedPlayer.Parent ~= Players then
+			victimHubRuntime2.S.CachedSelectedPlayerName = selectedName
+			victimHubRuntime2.S.CachedSelectedPlayer = selectedName and Players:FindFirstChild(selectedName) or nil
+		end
+
+		return victimHubRuntime2.S.CachedSelectedPlayer
+	end
+
+	victimHubRuntime2.PlayerLeave = {}
+
+	victimHubRuntime2:TrackConnection(Players.PlayerRemoving:Connect(function(player)
+		for _, v11 in ipairs(victimHubRuntime2.PlayerLeave) do
+			pcall(v11, player)
+		end
+	end))
+
+	table.insert(victimHubRuntime2.PlayerLeave, function(arg)
+		if victimHubRuntime2.S.CachedSelectedPlayer == arg then
+			victimHubRuntime2.S.CachedSelectedPlayer = nil
+			victimHubRuntime2.S.CachedSelectedPlayerName = nil
+		end
+
+		if victimHubRuntime2.S.CurrentTargetPlayer == arg then
+			victimHubRuntime2.S.CurrentTargetPlayer = nil
+		end
+	end)
+
+	victimHubRuntime2.S.SpectateConn = nil
+	victimHubRuntime2.S.OriginalCamera = nil
+
+	fn7 = function()
+		local currentCamera = workspace.CurrentCamera
+
+		if victimHubRuntime2.S.SpectateConn then
+			victimHubRuntime2:UntrackConnection(victimHubRuntime2.S.SpectateConn)
+			victimHubRuntime2.S.SpectateConn:Disconnect()
+			victimHubRuntime2.S.SpectateConn = nil
+		end
+
+		if victimHubRuntime2.S.OriginalCamera then
+			pcall(function()
+				currentCamera.CameraSubject = victimHubRuntime2.S.OriginalCamera
+			end)
+		else
+			pcall(function()
+				if localPlayer.Character and localPlayer.Character:FindFirstChild("Humanoid") then
+					currentCamera.CameraSubject = localPlayer.Character.Humanoid
+				end
+			end)
+		end
+
+		victimHubRuntime2.S.OriginalCamera = nil
+	end
+
+	fn8 = function()
+		local currentCamera = workspace.CurrentCamera
+
+		if not victimHubRuntime2.S.OriginalCamera then
+			victimHubRuntime2.S.OriginalCamera = currentCamera.CameraSubject
+		end
+
+		if victimHubRuntime2.S.SpectateConn then
+			victimHubRuntime2:UntrackConnection(victimHubRuntime2.S.SpectateConn)
+			victimHubRuntime2.S.SpectateConn:Disconnect()
+		end
+
+		victimHubRuntime2.S.SpectateConn = victimHubRuntime2:TrackConnection(RunService.RenderStepped:Connect(function()
+			if not victimHubRuntime2.S.SpectateEnabled or not name then
+				fn7()
+				return
+			end
+
+			pcall(function()
+				local v11 = fn6()
+
+				if v11 and v11.Character then
+					local humanoid = v11.Character:FindFirstChild("Humanoid")
+
+					if humanoid then
+						currentCamera.CameraSubject = humanoid
+					else
+						fn7()
+					end
+				else
+					fn7()
+				end
+			end)
+		end))
+	end
+
+	victimHubRuntime2.S.LastTargetPos = Vector3.zero
+	victimHubRuntime2.S.PlayerPositionHistory = {}
+	victimHubRuntime2.S.LastInstaTargetName = nil
+	victimHubRuntime2.S.InstaActive = false
+	victimHubRuntime2.S.TweenPlatform = nil
+	victimHubRuntime2.S.TwPausedUntil = 0
+	victimHubRuntime2.S.TwLastPos = nil
+	victimHubRuntime2.S.TwLastAt = 0
+	victimHubRuntime2.S.CurrentTwMode = nil
+	fn9 = nil
+
+	fn10 = function(arg, arg2, arg3)
+		if not arg then
+			return nil
+		end
+		local position = arg.Position
+		local count
+
+		if arg2 then
+			count = arg2.count or #arg2.positions
+		else
+			count = arg2
+		end
+
+		count = count or 0
+		if arg3 or not arg2 or count < 2 then
+			return position
+		end
+		local head = arg2.head or 1
+		local capacity = arg2.capacity or count
+
+		local function fn16(arg4)
+			if arg2.head then
+				return (head + arg4 - 2) % capacity + 1
+			end
+			return arg4
+		end
+
+		local v11 = fn16(1)
+		local vector = Vector3.zero
+		local n = 0
+
+		for i = 2, count do
+			local v12 = fn16(i)
+			local n2 = arg2.positions[v12] - arg2.positions[v11]
+			local n3 = arg2.timestamps[v12] - arg2.timestamps[v11]
+
+			if not (n3 > 0) then
+				v11 = v12
+			else
+				vector += n2
+				n += n3
+				v11 = v12
+			end
+		end
+
+		if n > 0 then
+			return position + vector / n * tbl2.PredictionTime
+		end
+		return position
+	end
+
+	pcall(function()
+		setfflag("RemoteEventSingleInvocationSizeLimit", "2900")
+		setfflag("TouchSenderMaxBandwidthBpsScaling", "-2147000000")
+	end)
+
+	task.spawn(function()
+		pcall(function()
+			local scrollingFrame = game.Players.LocalPlayer:WaitForChild("PlayerGui", 15):WaitForChild("Main", 15):WaitForChild("SettingsMenu", 15):WaitForChild("Content", 15):WaitForChild("ScrollingFrame", 15)
+
+			local function fn16(arg, arg2)
+				local v11 = scrollingFrame:WaitForChild(arg, 9)
+
+				if v11 then
+					local v12 = v11:WaitForChild(arg2 and "FirstButton" or "SecondButton", 9)
+
+					if v12 then
+						firesignal(v12.Activated)
+					end
+				end
+			end
+
+			fn16("FastMode", true)
+			fn16("CameraShake", false)
+			fn16("AllyVFX", false)
+		end)
+
+		pcall(function()
+			if not _G.FastMode and not _G.reducing then
+				_G.reducing = true
+				_G.FastMode = true
+				_G.FastModeCache = {}
+				local ReplicatedStorage2 = game:GetService("ReplicatedStorage")
+
+				local function fn16(arg)
+					local now = os.clock()
+
+					for _, v11 in next, arg, nil do
+						if v11:IsA("BasePart") then
+							_G.FastModeCache[v11] = v11.Material
+							v11.Material = Enum.Material.SmoothPlastic
+
+							if os.clock() - now > 0.0083 then
+								task.wait()
+								now = os.clock()
+							end
+						elseif v11:IsA("Texture") and not v11:GetAttribute("Offset") then
+							v11:Destroy()
+						end
+					end
+				end
+
+				fn16(workspace:WaitForChild("Map"):GetDescendants())
+				fn16(ReplicatedStorage2:WaitForChild("Unloaded"):GetDescendants())
+				local optimizerClientActor = game.Players.LocalPlayer.PlayerScripts:FindFirstChild("OptimizerClientActor")
+
+				if optimizerClientActor and optimizerClientActor.SendMessage then
+					optimizerClientActor:SendMessage("Optimize", true)
+				end
+
+				_G.reducing = false
+			end
+
+			local ReplicatedStorage2 = game:GetService("ReplicatedStorage")
+			local CameraShake = require(ReplicatedStorage2.Util.CameraShake)
+
+			if CameraShake.SetEnabled then
+				CameraShake:SetEnabled(false)
+			end
+
+			local CameraShaker = require(ReplicatedStorage2.Util.CameraShaker)
+
+			if CameraShaker.SetEnabled then
+				CameraShaker:SetEnabled(false)
+			end
+
+			ReplicatedStorage2.Remotes.ChangeSetting:FireServer("CameraShake", false)
+			game.Players.LocalPlayer:SetAttribute("DisableAllyEffects", true)
+		end)
+	end)
+
+	task.spawn(function()
+		pcall(function()
+			game:GetService("Lighting").BaseAtmosphere:Destroy()
+		end)
+
+		pcall(function()
+			settings().Rendering.QualityLevel = "Level01"
+		end)
+
+		pcall(function()
+			local now = os.clock()
+
+			for _, descendant in ipairs(game:GetDescendants()) do
+				if descendant:IsA("ParticleEmitter") or descendant:IsA("Trail") then
+					descendant.Lifetime = NumberRange.new(0)
+				elseif descendant:IsA("Decal") or descendant:IsA("Texture") then
+					descendant.Transparency = 1
+				elseif descendant:IsA("Fire") or descendant:IsA("SpotLight") or descendant:IsA("Smoke") then
+					descendant.Enabled = false
+				elseif descendant:IsA("Explosion") then
+					descendant.BlastPressure = 1
+					descendant.BlastRadius = 1
+				elseif descendant:IsA("BasePart") or descendant:IsA("UnionOperation") or descendant:IsA("CornerWedgePart") or descendant:IsA("TrussPart") then
+					descendant.Reflectance = 0
+				end
+
+				if os.clock() - now >= 0.0042 then
+					task.wait()
+					now = os.clock()
+				end
+			end
+		end)
+	end)
+
+	task.spawn(function()
+		local seed = net:WaitForChild("seed", 5)
+
+		if seed then
+			while victimHubRuntime2.Alive and task.wait(tbl2.SeedPollInterval) do
+				pcall(function()
+					local response = seed:InvokeServer()
+
+					if type(response) == "number" then
+						victimHubRuntime2.S.CachedSeed = response
+					end
+				end)
+			end
+		end
+	end)
+
+	local function fn16(arg)
+		for _, descendant in ipairs(arg:GetDescendants()) do
+			if descendant.Name == "Lava" then
+				pcall(function()
+					descendant:Destroy()
+				end)
+			end
+		end
+	end
+
+	fn11 = function()
+		fn16(v2)
+		fn16(ReplicatedStorage)
+	end
+
+	local function fn17(descendant)
+		if descendant.Name == "Lava" then
+			pcall(function()
+				descendant:Destroy()
+			end)
+		end
+	end
+
+	victimHubRuntime2:TrackConnection(v2.DescendantAdded:Connect(fn17))
+	victimHubRuntime2:TrackConnection(ReplicatedStorage.DescendantAdded:Connect(fn17))
+
+	local function fn18(arg)
+		if not arg then
+			return false
+		end
+
+		if arg == localPlayer then
+			return true
+		end
+
+		if localPlayer.Team and localPlayer.Team.Name == "Marines" and arg.Team and arg.Team.Name == "Marines" then
+			return true
+		end
+		local playerGui = localPlayer:FindFirstChild("PlayerGui")
+
+		if playerGui and playerGui:FindFirstChild("Main") and playerGui.Main:FindFirstChild("Allies") and playerGui.Main.Allies:FindFirstChild("Container") and playerGui.Main.Allies.Container:FindFirstChild("Allies") and playerGui.Main.Allies.Container.Allies:FindFirstChild("ScrollingFrame") and playerGui.Main.Allies.Container.Allies.ScrollingFrame:FindFirstChild("Frame") then
+			if playerGui.Main.Allies.Container.Allies.ScrollingFrame.Frame:FindFirstChild(arg.Name) then
+				return true
+			end
+		end
+
+		return false
+	end
+
+	local function fn19(arg)
+		local tbl6 = {}
+
+		for k in next, arg, nil do
+			tbl6[#tbl6 + 1] = tostring(k)
+		end
+
+		table.sort(tbl6)
+		return tbl6
+	end
+
+	tbl3 = {}
+	local str = ""
+	flag3 = false
+
+	task.spawn(function()
+		while victimHubRuntime2.Alive and task.wait(1) do
+			local tbl6 = {}
+
+			for _, player in ipairs(Players:GetPlayers()) do
+				if fn18(player) then
+					tbl6[player] = true
+				end
+			end
+
+			local str2 = table.concat(fn19(tbl6))
+
+			if str2 ~= str then
+				str = str2
+				flag3 = true
+			end
+
+			tbl3 = tbl6
+			task.wait(2)
+		end
+	end)
+
+	local tbl6 = {}
+	local worldOrigin = nil
+
+	local function fn20()
+		if not worldOrigin or not worldOrigin.Parent then
+			worldOrigin = v2:FindFirstChild("_WorldOrigin")
+		end
+
+		return worldOrigin
+	end
+
+	local function fn21()
+		for i = 1, #tbl6 do
+			tbl6[i] = nil
+		end
+
+		local v11 = fn20()
+		if not v11 then
+			return
+		end
+		local safeZones = v11:FindFirstChild("SafeZones")
+		if not safeZones then
+			return
+		end
+
+		for _, child in ipairs(safeZones:GetChildren()) do
+			local mesh = child:FindFirstChild("Mesh")
+
+			if mesh and mesh:IsA("SpecialMesh") then
+				tbl6[#tbl6 + 1] = { zone = child, radius = child.Size.X * mesh.Scale.X / 2 }
+			end
+		end
+	end
+
+	local function fn22()
+		local v11 = fn20()
+		if not v11 then
+			return false
+		end
+		local safeZones = v11:FindFirstChild("SafeZones")
+		if not safeZones then
+			return false
+		end
+		fn21()
+		safeZones.ChildAdded:Connect(fn21)
+		safeZones.ChildRemoved:Connect(fn21)
+		return true
+	end
+
+	if not fn22() then
+		task.spawn(function()
+			while not fn22() do
+				task.wait(2)
+			end
+		end)
+	end
+
+	local function fn23(arg)
+		local character = arg.Character
+		if not character then
+			return false
+		end
+		local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+		if not humanoidRootPart then
+			return false
+		end
+		local attribute = character:GetAttribute("InCombat")
+		if attribute == "1" or attribute == 1 or attribute == true then
+			return false
+		end
+		local position = humanoidRootPart.Position
+
+		for i = 1, #tbl6 do
+			local v11 = tbl6[i]
+			if (v11.zone.Position - position).Magnitude <= v11.radius then
+				return true
+			end
+		end
+
+		return false
+	end
+
+	local function fn24(arg, arg2)
+		if not arg2 or fn23(arg) then
+			return false
+		end
+		local attribute = arg:GetAttribute("PvpDisabled")
+		if attribute ~= nil then
+			return not attribute
+		end
+
+		if arg2:FindFirstChildOfClass("ForceField") then
+			return false
+		end
+		local attribute2 = arg2:GetAttribute("PvP")
+		if attribute2 ~= nil then
+			return attribute2
+		end
+		local pvP = arg2:FindFirstChild("PvP")
+		if pvP and pvP:IsA("BoolValue") then
+			return pvP.Value
+		end
+		return true
+	end
+
+	local tbl7 = {}
+
+	local function fn25(arg)
+		local v11 = tbl7[arg]
+
+		if v11 and v11.data.Parent == arg and v11.level.Parent == v11.data then
+			local value = v11.level.Value
+			if value then
+				return tonumber(value)
+			end
+			return 0
+		end
+
+		local data = arg:FindFirstChild("Data")
+		local level = data and data:FindFirstChild("Level")
+
+		if data and level then
+			tbl7[arg] = { data = data, level = level }
+			local value = level.Value
+			if value then
+				return tonumber(value)
+			end
+		end
+
+		tbl7[arg] = nil
+		return 0
+	end
+
+	table.insert(victimHubRuntime2.PlayerLeave, function(arg)
+		tbl7[arg] = nil
+	end)
+
+	fn12 = function(arg)
+		if arg == localPlayer then
+			return false
+		end
+
+		if localPlayer.Team and localPlayer.Team.Name == "Marines" and arg.Team and arg.Team == localPlayer.Team then
+			return false
+		end
+
+		if arg:GetAttribute("PvpDisabled") == true or arg:GetAttribute("IslandRaiding") == true then
+			return false
+		end
+		local minPlayerLevel = tbl2.MinPlayerLevel
+		if fn25(arg) < minPlayerLevel or fn23(arg) then
+			return false
+		end
+		local character = arg.Character
+		character = character and character:FindFirstChild("Humanoid")
+		if not character or character.Health <= 0 then
+			return false
+		end
+		return true
+	end
+
+	local tbl8 = {}
+
+	fn13 = function()
+		for _, v11 in ipairs(tbl8) do
+			if v11 then
+				pcall(function()
+					v11:Disconnect()
+				end)
+			end
+		end
+
+		tbl8 = {}
+	end
+
+	fn14 = function(character)
+		fn13()
+		local humanoidRootPart = character:WaitForChild("HumanoidRootPart", 5)
+
+		if humanoidRootPart then
+			table.insert(tbl8, humanoidRootPart.ChildAdded:Connect(function(child)
+				if not victimHubRuntime2.Alive or not tbl2.AntiStun then
+					return
+				end
+
+				if child:IsA("BodyVelocity") or child:IsA("BodyGyro") or child:IsA("BodyPosition") or child:IsA("BodyAngularVelocity") then
+					local str2 = child.Name:lower()
+
+					if (string.find(str2, "stun", 1, true) or string.find(str2, "freeze", 1, true) or string.find(str2, "ragdoll", 1, true) or string.find(str2, "knockback", 1, true) or string.find(str2, "root", 1, true)) and child.Name ~= "FlyVelocity" and child.Name ~= "FlyGyro" and child.Name ~= "FarmVelocity" then
+						pcall(function()
+							child:Destroy()
+						end)
+					end
+				end
+			end))
+		end
+
+		local humanoid = character:WaitForChild("Humanoid", 5)
+
+		if humanoid and tbl2.AntiStun then
+			pcall(function()
+				humanoid:SetStateEnabled(Enum.HumanoidStateType.Stunned, false)
+			end)
+
+			pcall(function()
+				humanoid:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
+			end)
+
+			pcall(function()
+				humanoid:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, false)
+			end)
+		end
+
+		if tbl2.AntiStun then
+			pcall(function()
+				if not character:FindFirstChild("AntiMover") then
+					local folder = Instance.new("Folder")
+					folder.Name = "AntiMover"
+					folder.Parent = character
+				end
+
+				table.insert(tbl8, character.ChildRemoved:Connect(function(child)
+					if victimHubRuntime2.Alive and tbl2.AntiStun and child:IsA("Folder") and child.Name == "AntiMover" then
+						local folder = Instance.new("Folder")
+						folder.Name = "AntiMover"
+						folder.Parent = character
+					end
+				end))
+			end)
+		end
+	end
+
+	if localPlayer.Character then
+		fn14(localPlayer.Character)
+	end
+
+	v7 = victimHubRuntime2:TrackConnection(localPlayer.CharacterAdded:Connect(fn14))
+
+	local function fn26(arg)
+		arg.CanCollide = false
+	end
+
+	local function fn27(arg)
+		arg:SetStateEnabled(Enum.HumanoidStateType.PlatformStanding, false)
+	end
+
+	local function fn28(arg)
+		arg:Destroy()
+	end
+
+	task.spawn(function()
+		while victimHubRuntime2.Alive and task.wait(0.05) do
+			if tbl2.AntiStun then
+				local character = localPlayer.Character
+
+				if character then
+					if character:GetAttribute("UnbreakableAll") ~= true then
+						character:SetAttribute("UnbreakableAll", true)
+					end
+
+					if character:GetAttribute("Stun") ~= 0 then
+						character:SetAttribute("Stun", 0)
+					end
+
+					if character:GetAttribute("Busy") ~= false then
+						character:SetAttribute("Busy", false)
+					end
+
+					if character:GetAttribute("CantMove") ~= false then
+						character:SetAttribute("CantMove", false)
+					end
+
+					if character:GetAttribute("Stunned") ~= false then
+						character:SetAttribute("Stunned", false)
+					end
+
+					local humanoid = character:FindFirstChild("Humanoid")
+					local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+
+					if humanoid and humanoidRootPart then
+						for _, child in ipairs(character:GetChildren()) do
+							if child:IsA("BasePart") and child.CanCollide then
+								pcall(fn26, child)
+							end
+						end
+
+						if not tbl2.Fly then
+							pcall(fn27, humanoid)
+
+							if humanoid.PlatformStand then
+								humanoid.PlatformStand = false
+							end
+						end
+
+						humanoid.PlatformStand = false
+						humanoid.Sit = false
+
+						if humanoidRootPart.Anchored then
+							humanoidRootPart.Anchored = false
+						end
+
+						for _, child in ipairs(humanoidRootPart:GetChildren()) do
+							if (child:IsA("BodyVelocity") or child:IsA("BodyGyro") or child:IsA("BodyPosition")) and child.Name ~= "FlyVelocity" and child.Name ~= "FlyGyro" and child.Name ~= "FarmVelocity" then
+								pcall(fn28, child)
+							end
+						end
+
+						local seatWeld = humanoidRootPart:FindFirstChild("SeatWeld")
+
+						if seatWeld then
+							pcall(fn28, seatWeld)
+						end
+					end
+				end
+			end
+		end
+	end)
+
+	v8 = victimHubRuntime2:TrackConnection(UserInputService.InputBegan:Connect(function(input, gameProcessed)
+		local flag4 = not gameProcessed
+
+		if flag4 and input.UserInputType == Enum.UserInputType.MouseButton1 then
+			if validator then
+				pcall(function()
+					validator:FireServer(math.floor(os.clock() * 1000))
+				end)
+			end
+		end
+
+		if flag4 and not UserInputService:GetFocusedTextBox() then
+			local keyCode = input.KeyCode
+
+			if keyCode == Enum.KeyCode.Z then
+				victimHubRuntime2.S.SkillRedirectSkill = "Z"
+			elseif keyCode == Enum.KeyCode.X then
+				victimHubRuntime2.S.SkillRedirectSkill = "X"
+			elseif keyCode == Enum.KeyCode.C then
+				victimHubRuntime2.S.SkillRedirectSkill = "C"
+			elseif keyCode == Enum.KeyCode.V then
+				victimHubRuntime2.S.SkillRedirectSkill = "V"
+			elseif keyCode == Enum.KeyCode.F then
+				victimHubRuntime2.S.SkillRedirectSkill = "F"
+			end
+		end
+	end))
+
+	if flag2 then
+		victimHubRuntime2:TrackConnection(UserInputService.TouchStarted:Connect(function()
+			if validator then
+				pcall(function()
+					validator:FireServer(math.floor(os.clock() * 1000))
+				end)
+			end
+		end))
+	end
+
+	local v11 = nil
+	local tbl9 = {}
+
+	local tbl10 = {
+		"Head",
+		"UpperTorso",
+		"LowerTorso",
+		"LeftUpperArm",
+		"RightUpperArm",
+		"LeftLowerArm",
+		"RightLowerArm",
+		"LeftUpperLeg",
+		"RightUpperLeg",
+		"LeftLowerLeg",
+		"RightLowerLeg",
+	}
+
+	local tbl11 = {}
+
+	local function fn29(arg)
+		if not arg then
+			return nil
+		end
+		table.clear(tbl11)
+
+		for _, v12 in ipairs(tbl10) do
+			local v13 = arg:FindFirstChild(v12)
+
+			if v13 and v13:IsA("BasePart") then
+				tbl11[#tbl11 + 1] = v13
+			end
+		end
+
+		if #tbl11 == 0 then
+			return arg:FindFirstChild("HumanoidRootPart")
+		end
+		return tbl11[math.random(1, #tbl11)]
+	end
+
+	local function fn30()
+		if victimHubRuntime2.S.DragonReady then
+			return
+		end
+
+		if pcall(function()
+			for _, v12 in ipairs(debug.getupvalues(require(ReplicatedStorage:WaitForChild("Controllers"):WaitForChild("CombatController")).Attack)) do
+				if type(v12) == "function" then
+					for i, v13 in ipairs(debug.getupvalues(v12)) do
+						if v13 == 727595 then
+							v11 = v12
+
+							tbl9 = {
+								u25 = i - 3,
+								u21 = i - 2,
+								u24 = i - 1,
+								u20 = i,
+								u22 = i + 1,
+								u23 = i + 2,
+								u26 = i + 3,
+							}
+
+							break
+						end
+					end
+
+					if not v11 then
+						continue
+					end
+				else
+					continue
+				end
+
+				break
+			end
+		end) and v11 then
+			victimHubRuntime2.S.DragonReady = true
+		end
+	end
+
+	local function fn31(arg, arg2)
+		if not v11 then
+			return
+		end
+		local v12 = debug.getupvalue(v11, tbl9.u20)
+		local v13 = debug.getupvalue(v11, tbl9.u21)
+		local v14 = debug.getupvalue(v11, tbl9.u22)
+		local v15 = debug.getupvalue(v11, tbl9.u23)
+		local v16 = debug.getupvalue(v11, tbl9.u24)
+		local v17 = debug.getupvalue(v11, tbl9.u25)
+		local v18 = debug.getupvalue(v11, tbl9.u26)
+		local n = ((v16 * v13 + v17 * v12) % v14 * v14 + v17 * v13) % v15
+		local n2 = math.floor(n / v14)
+		local n3 = n - n2 * v14
+		local n4 = v18 + 1
+		debug.setupvalue(v11, tbl9.u24, n2)
+		debug.setupvalue(v11, tbl9.u25, n3)
+		debug.setupvalue(v11, tbl9.u26, n4)
+		v10:FireServer(math.floor(n / v15 * 16777215), n4)
+		v9:FireServer(arg, { arg2 })
+	end
+
+	local function fn32(arg)
+		local character = arg.Character
+
+		for _, v12 in ipairs({ arg:FindFirstChild("Backpack"), character }) do
+			if v12 then
+				for _, child in ipairs(v12:GetChildren()) do
+					if child:GetAttribute("WeaponType") ~= "Demon Fruit" then
+						continue
+					end
+
+					if (child.Name:match("^([^-]+)") or child.Name):gsub("%d+$", ""):lower():find("rubber") ~= nil then
+						return true
+					end
+				end
+			end
+		end
+
+		return false
+	end
+
+	local function fn33(arg)
+		if arg == localPlayer then
+			return false
+		end
+
+		if arg:GetAttribute("IslandRaiding") == true then
+			return false
+		end
+
+		if localPlayer.Team and localPlayer.Team.Name == "Marines" and arg.Team and arg.Team == localPlayer.Team then
+			return false
+		end
+		local minPlayerLevel = tbl2.MinPlayerLevel
+		if fn25(arg) < minPlayerLevel then
+			return false
+		end
+		local character = arg.Character
+		if not character then
+			return false
+		end
+		local humanoid = character:FindFirstChild("Humanoid")
+		if not humanoid or humanoid.Health <= 0 then
+			return false
+		end
+
+		if fn32(arg) then
+			return false
+		end
+
+		if not fn24(arg, character) then
+			return false
+		end
+		return true
+	end
+
+	fn15 = function()
+		local character = localPlayer.Character
+		if not character then
+			return nil
+		end
+		local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+		if not humanoidRootPart then
+			return nil
+		end
+		local dragonstormRange = tbl2.DragonstormRange
+		local v12 = nil
+
+		for _, player in ipairs(Players:GetPlayers()) do
+			if fn33(player) then
+				local humanoidRootPart2 = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+
+				if humanoidRootPart2 then
+					local magnitude = (humanoidRootPart2.Position - humanoidRootPart.Position).Magnitude
+
+					if magnitude < dragonstormRange then
+						dragonstormRange = magnitude
+						v12 = humanoidRootPart2
+					end
+				end
+			end
+		end
+
+		if not v12 then
+			local SeaBeasts = fn5("SeaBeasts")
+
+			if SeaBeasts then
+				for _, SeaBeast in ipairs(SeaBeasts) do
+					local humanoidRootPart2 = SeaBeast:FindFirstChild("HumanoidRootPart")
+					local health = SeaBeast:FindFirstChild("Health")
+
+					if humanoidRootPart2 and health and health:IsA("ValueBase") and health.Value > 0 then
+						local magnitude = (humanoidRootPart2.Position - humanoidRootPart.Position).Magnitude
+
+						if magnitude < dragonstormRange then
+							dragonstormRange = magnitude
+							v12 = humanoidRootPart2
+						end
+					end
+				end
+			end
+		end
+
+		if not v12 then
+			local Enemies = fn5("Enemies")
+
+			if Enemies then
+				for _, Enemy in ipairs(Enemies) do
+					local humanoid = Enemy:FindFirstChild("Humanoid")
+					local humanoidRootPart2 = Enemy:FindFirstChild("HumanoidRootPart")
+
+					if humanoid and humanoidRootPart2 and humanoid.Health > 0 then
+						local magnitude = (humanoidRootPart2.Position - humanoidRootPart.Position).Magnitude
+
+						if magnitude < dragonstormRange then
+							dragonstormRange = magnitude
+							v12 = humanoidRootPart2
+						end
+					end
+				end
+			end
+		end
+
+		return v12
+	end
+
+	task.spawn(function()
+		while victimHubRuntime2.Alive and not victimHubRuntime2.S.DragonReady do
+			fn30()
+			task.wait(tbl2.DragonInitRetryInterval)
+		end
+
+		while victimHubRuntime2.Alive and task.wait() do
+			if tbl2.DragonstormAuraV1 or tbl2.DragonstormAuraV2 then
+				if localPlayer.Character then
+					local tool = localPlayer.Character:FindFirstChildOfClass("Tool")
+
+					if not (not tool or tool.Name ~= "Dragonstorm") then
+						local v12 = fn15()
+
+						if v12 then
+							local v13 = fn29(v12.Parent) or v12
+							fn31(v13.Position, v13)
+						end
+					end
+				end
+			end
+		end
+	end)
+end
+
+victimHubRuntime2.MobBring = { Enabled = false, Generation = 0, Restores = {}, Cycles = {}, Returned = {}, LastPrune = 0 }
+
+victimHubRuntime2.MobBring.Remember = function(arg, arg2, arg3)
+	if not arg2 then
+		return
+	end
+	local tbl4 = arg.Restores[arg2]
+
+	if not tbl4 then
+		tbl4 = {}
+		arg.Restores[arg2] = tbl4
+	end
+
+	if tbl4[arg3] == nil then
+		local ok, result = pcall(function()
+			return arg2[arg3]
+		end)
+
+		if ok then
+			tbl4[arg3] = result
+		end
+	end
+end
+
+victimHubRuntime2.MobBring.RestoreInstance = function(arg, arg2)
+	if not arg2 then
+		return
+	end
+	local v9 = arg.Restores[arg2]
+	if not v9 then
+		return
+	end
+
+	if arg2.Parent then
+		for k, v10 in pairs(v9) do
+			pcall(function()
+				arg2[k] = v10
+			end)
+		end
+	end
+
+	arg.Restores[arg2] = nil
+end
+
+victimHubRuntime2.MobBring.RestoreAll = function(arg)
+	for k, cycle in pairs(arg.Cycles) do
+		local mob = cycle.Mob
+		mob = mob and mob:FindFirstChildOfClass("Humanoid")
+
+		if k and k.Parent and mob and mob.Health > 0 then
+			pcall(function()
+				k.CFrame = cycle.Origin
+			end)
+		end
+	end
+
+	for k, restore in pairs(arg.Restores) do
+		if k and k.Parent then
+			for k2, v9 in pairs(restore) do
+				pcall(function()
+					k[k2] = v9
+				end)
+			end
+		end
+	end
+
+	table.clear(arg.Restores)
+	table.clear(arg.Cycles)
+	table.clear(arg.Returned)
+end
+
+victimHubRuntime2.MobBring.BeginCycle = function(arg, arg2, arg3, arg4, arg5)
+	arg.Cycles[arg2] = { Mob = arg3, Origin = arg2.CFrame, StartedAt = arg5 }
+	arg:Remember(arg2, "CanCollide")
+	arg:Remember(arg2, "AssemblyLinearVelocity")
+	arg:Remember(arg2, "AssemblyAngularVelocity")
+	arg:Remember(arg4, "WalkSpeed")
+	arg:Remember(arg4, "JumpPower")
+end
+
+victimHubRuntime2.MobBring.ReturnCycle = function(arg, arg2, arg3)
+	local mob = arg3.Mob
+	mob = mob and mob:FindFirstChildOfClass("Humanoid")
+
+	if arg2 and arg2.Parent and mob and mob.Health > 0 then
+		pcall(function()
+			arg2.CFrame = arg3.Origin
+		end)
+	end
+
+	arg:RestoreInstance(arg2)
+
+	if mob then
+		arg:RestoreInstance(mob)
+	end
+
+	arg.Cycles[arg2] = nil
+	arg.Returned[arg2] = true
+end
+
+victimHubRuntime2.MobBring.Prune = function(arg, lastPrune)
+	if lastPrune - arg.LastPrune < 1 then
+		return
+	end
+	arg.LastPrune = lastPrune
+
+	for k, cycle in pairs(arg.Cycles) do
+		if not k or not k.Parent or not cycle.Mob or not cycle.Mob.Parent then
+			arg.Cycles[k] = nil
+		end
+	end
+
+	for k in pairs(arg.Returned) do
+		if not k or not k.Parent then
+			arg.Returned[k] = nil
+		end
+	end
+
+	for k in pairs(arg.Restores) do
+		if not k or not k.Parent then
+			arg.Restores[k] = nil
+		end
+	end
+end
+
+victimHubRuntime2.MobBring.Apply = function(arg)
+	local now = os.clock()
+	arg:Prune(now)
+
+	for k, cycle in pairs(arg.Cycles) do
+		if now - cycle.StartedAt >= tbl2.MobBringHold then
+			arg:ReturnCycle(k, cycle)
+		end
+	end
+
+	local character = localPlayer.Character
+	character = character and character:FindFirstChild("HumanoidRootPart")
+	local Enemies = fn5("Enemies")
+	if not character or not Enemies then
+		return
+	end
+	local cFrame = character.CFrame * CFrame.new(0, -15, 0)
+
+	for _, Enemy in ipairs(Enemies) do
+		local humanoid = Enemy:FindFirstChildOfClass("Humanoid")
+		local humanoidRootPart = Enemy:FindFirstChild("HumanoidRootPart") or Enemy.PrimaryPart
+
+		if not (humanoid and humanoidRootPart and humanoid.Health > 0 and (humanoidRootPart.Position - character.Position).Magnitude <= tbl2.MobBringRange) then
+			if humanoidRootPart then
+				arg.Returned[humanoidRootPart] = nil
+			end
+		elseif not arg.Returned[humanoidRootPart] then
+			local flag4
+
+			if isnetworkowner then
+				flag4 = isnetworkowner(humanoidRootPart)
+			else
+				flag4 = humanoidRootPart.ReceiveAge == 0 and not humanoidRootPart.Anchored
+			end
+
+			if flag4 then
+				if not arg.Cycles[humanoidRootPart] then
+					arg:BeginCycle(humanoidRootPart, Enemy, humanoid, now)
+				end
+
+				humanoidRootPart.CanCollide = false
+				humanoidRootPart.AssemblyLinearVelocity = Vector3.zero
+				humanoidRootPart.AssemblyAngularVelocity = Vector3.zero
+				humanoid.WalkSpeed = 0
+				humanoid.JumpPower = 0
+				humanoidRootPart.CFrame = cFrame
+			end
+		end
+	end
+end
+
+victimHubRuntime2.MobBring.Start = function(arg)
+	if arg.Enabled then
+		return
+	end
+	arg.Enabled = true
+	arg.Generation = arg.Generation + 1
+	local generation = arg.Generation
+
+	pcall(function()
+		sethiddenproperty(localPlayer, "SimulationRadius", math.huge)
+	end)
+
+	task.spawn(function()
+		while victimHubRuntime2.Alive and arg.Enabled and arg.Generation == generation do
+			arg:Apply()
+			task.wait()
+		end
+	end)
+end
+
+victimHubRuntime2.MobBring.Stop = function(arg)
+	arg.Enabled = false
+	arg.Generation = arg.Generation + 1
+	arg:RestoreAll()
+end
+
+local fn18, fn19
+
+do
+	local connection = nil
+	local bodyVelocity = nil
+	local bodyGyro = nil
+
+	victimHubRuntime2.MobileFly = {
+		Thread = nil,
+		Conn = nil,
+		Up = false,
+		Down = false,
+		SpeedLevel = 1,
+		Attachment = nil,
+		LinearVelocity = nil,
+		AlignOrientation = nil,
+		Character = nil,
+		Humanoid = nil,
+		Root = nil,
+		Animate = nil,
+		LockedTracks = {},
+		Controls = nil,
+	}
+
+	local tbl4 = {
+		Enum.HumanoidStateType.Climbing,
+		Enum.HumanoidStateType.FallingDown,
+		Enum.HumanoidStateType.Flying,
+		Enum.HumanoidStateType.Freefall,
+		Enum.HumanoidStateType.GettingUp,
+		Enum.HumanoidStateType.Jumping,
+		Enum.HumanoidStateType.Landed,
+		Enum.HumanoidStateType.Physics,
+		Enum.HumanoidStateType.PlatformStanding,
+		Enum.HumanoidStateType.Ragdoll,
+		Enum.HumanoidStateType.Running,
+		Enum.HumanoidStateType.RunningNoPhysics,
+		Enum.HumanoidStateType.Seated,
+		Enum.HumanoidStateType.StrafingNoPhysics,
+		Enum.HumanoidStateType.Swimming,
+	}
+
+	fn18 = function()
+		local mobileFly = victimHubRuntime2.MobileFly
+
+		if mobileFly.Thread then
+			task.cancel(mobileFly.Thread)
+			mobileFly.Thread = nil
+		end
+
+		if mobileFly.Conn then
+			victimHubRuntime2:UntrackConnection(mobileFly.Conn)
+			mobileFly.Conn:Disconnect()
+			mobileFly.Conn = nil
+		end
+
+		mobileFly.Up = false
+		mobileFly.Down = false
+
+		if connection then
+			connection:Disconnect()
+			connection = nil
+		end
+
+		if mobileFly.LinearVelocity then
+			mobileFly.LinearVelocity:Destroy()
+			mobileFly.LinearVelocity = nil
+		end
+
+		if mobileFly.AlignOrientation then
+			mobileFly.AlignOrientation:Destroy()
+			mobileFly.AlignOrientation = nil
+		end
+
+		if mobileFly.Attachment then
+			mobileFly.Attachment:Destroy()
+			mobileFly.Attachment = nil
+		end
+
+		for _, lockedTrack in ipairs(mobileFly.LockedTracks) do
+			pcall(function()
+				lockedTrack:AdjustSpeed(1)
+			end)
+		end
+
+		table.clear(mobileFly.LockedTracks)
+
+		if mobileFly.Animate then
+			mobileFly.Animate.Disabled = false
+			mobileFly.Animate = nil
+		end
+
+		local character = localPlayer.Character
+
+		if character then
+			local humanoid = character:FindFirstChild("Humanoid")
+
+			if character:GetAttribute("VictimHubFlyArmed") then
+				character:SetAttribute("VictimHubFlyArmed", nil)
+			end
+
+			if humanoid then
+				humanoid.PlatformStand = false
+
+				for _, v9 in ipairs(tbl4) do
+					humanoid:SetStateEnabled(v9, true)
+				end
+
+				pcall(function()
+					humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
+				end)
+			end
+
+			local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+
+			if humanoidRootPart then
+				local flyVelocity = humanoidRootPart:FindFirstChild("FlyVelocity")
+				local flyGyro = humanoidRootPart:FindFirstChild("FlyGyro")
+
+				if flyVelocity then
+					flyVelocity:Destroy()
+				end
+
+				if flyGyro then
+					flyGyro:Destroy()
+				end
+			end
+		end
+
+		mobileFly.Character = nil
+		mobileFly.Humanoid = nil
+		mobileFly.Root = nil
+		bodyVelocity = nil
+		bodyGyro = nil
+	end
+
+	fn19 = function()
+		fn18()
+
+		if flag2 then
+			local mobileFly = victimHubRuntime2.MobileFly
+
+			local ok, result = pcall(function()
+				return require(localPlayer.PlayerScripts:WaitForChild("PlayerModule")):GetControls()
+			end)
+
+			mobileFly.Controls = ok and result or nil
+			local character = localPlayer.Character or localPlayer.CharacterAdded:Wait()
+			local humanoid = character:WaitForChild("Humanoid")
+			local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
+			mobileFly.Character = character
+			mobileFly.Humanoid = humanoid
+			mobileFly.Root = humanoidRootPart
+			mobileFly.Animate = character:FindFirstChild("Animate")
+
+			if mobileFly.Animate then
+				mobileFly.Animate.Disabled = true
+			end
+
+			table.clear(mobileFly.LockedTracks)
+
+			for _, v9 in ipairs(humanoid:GetPlayingAnimationTracks()) do
+				pcall(function()
+					v9:AdjustSpeed(0)
+				end)
+
+				mobileFly.LockedTracks[#mobileFly.LockedTracks + 1] = v9
+			end
+
+			humanoid.PlatformStand = true
+			mobileFly.Attachment = Instance.new("Attachment")
+			mobileFly.Attachment.Parent = humanoidRootPart
+			mobileFly.LinearVelocity = Instance.new("LinearVelocity")
+			mobileFly.LinearVelocity.MaxForce = 9e9
+			mobileFly.LinearVelocity.VectorVelocity = Vector3.zero
+			mobileFly.LinearVelocity.Attachment0 = mobileFly.Attachment
+			mobileFly.LinearVelocity.RelativeTo = Enum.ActuatorRelativeTo.World
+			mobileFly.LinearVelocity.Parent = mobileFly.Attachment
+			mobileFly.AlignOrientation = Instance.new("AlignOrientation")
+			mobileFly.AlignOrientation.MaxTorque = 9e9
+			mobileFly.AlignOrientation.Responsiveness = 200
+			mobileFly.AlignOrientation.Mode = Enum.OrientationAlignmentMode.OneAttachment
+			mobileFly.AlignOrientation.Attachment0 = mobileFly.Attachment
+			mobileFly.AlignOrientation.Parent = mobileFly.Attachment
+
+			mobileFly.Conn = victimHubRuntime2:TrackConnection(RunService.RenderStepped:Connect(function()
+				if not victimHubRuntime2.Alive or not tbl2.Fly then
+					fn18()
+					return
+				end
+				local currentCamera = v2.CurrentCamera
+				if not currentCamera or not mobileFly.Root or not mobileFly.Root.Parent or not mobileFly.LinearVelocity or not mobileFly.AlignOrientation then
+					return
+				end
+
+				for _, lockedTrack in ipairs(mobileFly.LockedTracks) do
+					if lockedTrack and lockedTrack.IsPlaying and lockedTrack.Speed ~= 0 then
+						pcall(function()
+							lockedTrack:AdjustSpeed(0)
+						end)
+					end
+				end
+
+				local moveVector = Vector3.zero
+				if mobileFly.Controls then
+					local ok, value = pcall(function() return mobileFly.Controls:GetMoveVector() end)
+					if ok and typeof(value) == "Vector3" then moveVector = value end
+				end
+				local vector = Vector3.zero
+
+				if moveVector.Magnitude > 0 then
+					vector = currentCamera.CFrame.LookVector * -moveVector.Z + currentCamera.CFrame.RightVector * moveVector.X
+				elseif mobileFly.Humanoid then
+					vector = mobileFly.Humanoid.MoveDirection
+				end
+
+				if vector.Magnitude > 0 then
+					vector = vector.Unit
+				end
+
+				mobileFly.LinearVelocity.VectorVelocity = (vector * (tbl2.FlySpeed or tbl2.MobileFlySpeed or 300) * mobileFly.SpeedLevel) + Vector3.new(0, ((mobileFly.Up and 1 or 0) - (mobileFly.Down and 1 or 0)) * (tbl2.FlySpeed or tbl2.MobileFlyVerticalSpeed or 50), 0)
+				mobileFly.AlignOrientation.CFrame = currentCamera.CFrame
+			end))
+
+			return
+		end
+
+		connection = RunService.RenderStepped:Connect(function()
+			if not victimHubRuntime2.Alive or not tbl2.Fly then
+				fn18()
+				return
+			end
+			local character = localPlayer.Character
+			if not character then
+				return
+			end
+			local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+			local humanoid = character:FindFirstChild("Humanoid")
+			if not humanoidRootPart or not humanoid then
+				return
+			end
+
+			if not bodyVelocity or not bodyVelocity.Parent then
+				bodyVelocity = Instance.new("BodyVelocity")
+				bodyVelocity.Name = "FlyVelocity"
+				bodyVelocity.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+				bodyVelocity.Velocity = Vector3.zero
+				bodyVelocity.Parent = humanoidRootPart
+				bodyGyro = Instance.new("BodyGyro")
+				bodyGyro.Name = "FlyGyro"
+				bodyGyro.MaxTorque = Vector3.new(9e9, 9e9, 9e9)
+				bodyGyro.P = tbl2.FlyGyroStiffness
+				bodyGyro.CFrame = humanoidRootPart.CFrame
+				bodyGyro.Parent = humanoidRootPart
+				humanoid.PlatformStand = true
+			end
+
+			local cFrame = v2.CurrentCamera.CFrame
+			local n = cFrame.LookVector * ((UserInputService:IsKeyDown(Enum.KeyCode.W) and 1 or 0) + (UserInputService:IsKeyDown(Enum.KeyCode.S) and -1 or 0)) + cFrame.RightVector * ((UserInputService:IsKeyDown(Enum.KeyCode.D) and 1 or 0) + (UserInputService:IsKeyDown(Enum.KeyCode.A) and -1 or 0))
+
+			if n.Magnitude > 0 then
+				n = n.Unit
+			end
+
+			bodyVelocity.Velocity = n * tbl2.FlySpeed * victimHubRuntime2.MobileFly.SpeedLevel + Vector3.new(0, ((victimHubRuntime2.MobileFly.Up and 1 or 0) - (victimHubRuntime2.MobileFly.Down and 1 or 0)) * tbl2.FlySpeed, 0)
+			bodyGyro.CFrame = cFrame
+		end)
+	end
+end
+
+local v9
+
+v9 = victimHubRuntime2:TrackConnection(localPlayer.CharacterAdded:Connect(function()
+	task.wait(tbl2.FlyRespawnDelay)
+
+	if tbl2.Fly then
+		fn19()
+	end
+end))
+
+victimHubRuntime2:TrackConnection(localPlayer.CharacterAdded:Connect(function()
+	if victimHubRuntime2.S.ActiveTween then
+		victimHubRuntime2.S.ActiveTween:Cancel()
+		victimHubRuntime2.S.ActiveTween = nil
+	end
+
+	victimHubRuntime2.S.InstaActive = false
+end))
+
+do
+	local n = 0
+	local tbl4 = {}
+	local v10 = nil
+	local v11 = nil
+	local v12 = nil
+
+	local function fn20(arg)
+		return arg.LastUse
+	end
+
+	local function fn21(arg)
+		arg.LastUse = 0
+	end
+
+	local function fn22(arg)
+		if not (arg and getgc and getupvalues and setupvalue) then
+			return
+		end
+		local skyjump = arg:FindFirstChild("Skyjump")
+		if not skyjump then
+			return
+		end
+
+		if v10 ~= skyjump or #tbl4 == 0 then
+			v10 = skyjump
+			tbl4 = {}
+			v11 = nil
+			v12 = nil
+			local v13 = next
+			local v14, v15 = getgc()
+
+			for _, v16 in v13, v14, v15 do
+				if typeof(v16) == "function" then
+					local ok, result = pcall(getfenv, v16)
+
+					if ok and result and result.script == skyjump then
+						tbl4[#tbl4 + 1] = v16
+					end
+				end
+			end
+		end
+
+		for _, v13 in ipairs(tbl4) do
+			local v14 = next
+			local v15, v16 = getupvalues(v13)
+			local flag4 = false
+
+			for k, v17 in v14, v15, v16 do
+				if type(v17) == "table" then
+					local ok, result = pcall(fn20, v17)
+
+					if ok and result ~= nil then
+						pcall(fn21, v17)
+						v12 = v17
+						flag4 = true
+					end
+				elseif type(v17) == "number" and v17 >= 5 and v17 <= 100 then
+					pcall(setupvalue, v13, k, 0)
+				end
+			end
+
+			if flag4 and not v11 then
+				v11 = v13
+			end
+		end
+	end
+
+	victimHubRuntime2:TrackConnection(UserInputService.JumpRequest:Connect(function()
+		if not tbl2.InfiniteJump then
+			return
+		end
+		local now = os.clock()
+		if now - n < 0.05 then
+			return
+		end
+		n = now
+		local character = localPlayer.Character
+		if not character then
+			return
+		end
+		local humanoid = character:FindFirstChildOfClass("Humanoid")
+		local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+		if not humanoid or not humanoidRootPart or humanoid.Health <= 0 or humanoid.Sit then
+			return
+		end
+		pcall(fn22, character)
+
+		pcall(function()
+			humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+		end)
+
+		if v11 then
+			local value = v12 and select(2, pcall(fn20, v12))
+			pcall(v11, { UserInputState = Enum.UserInputState.Begin })
+			if value ~= (v12 and select(2, pcall(fn20, v12))) then
+				return
+			end
+		end
+
+		local infJumpMultiplier = tbl2.InfJumpMultiplier
+		local jumpPower
+
+		if humanoid.UseJumpPower then
+			jumpPower = humanoid.JumpPower
+		else
+			jumpPower = math.sqrt(math.max(humanoid.JumpHeight or 7.2, 0) * 2 * v2.Gravity)
+		end
+
+		local assemblyLinearVelocity = humanoidRootPart.AssemblyLinearVelocity
+		humanoidRootPart.AssemblyLinearVelocity = Vector3.new(assemblyLinearVelocity.X, math.max(jumpPower * infJumpMultiplier, 50), assemblyLinearVelocity.Z)
+
+		pcall(function()
+			local energy = character:FindFirstChild("Energy")
+
+			if energy and energy.Value >= 15 then
+				v6:FireServer("Dodge", "Geppo", 15, nil, v2:GetServerTimeNow())
+				local playerSkyJumped = ReplicatedStorage:FindFirstChild("PlayerSkyJumped")
+
+				if playerSkyJumped then
+					playerSkyJumped:Fire()
+				end
+			end
+		end)
+	end))
+
+	task.spawn(function()
+		while victimHubRuntime2.Alive do
+			if tbl2.InfiniteJump then
+				pcall(fn22, localPlayer.Character)
+			end
+
+			task.wait(0.1)
+		end
+	end)
+end
+
+victimHubRuntime2.MiscFX = { Conns = {}, WaterThread = nil, GhostConn = nil }
+local fn20
+
+fn20 = function()
+	for _, conn in ipairs(victimHubRuntime2.MiscFX.Conns) do
+		pcall(function()
+			conn:Disconnect()
+		end)
+	end
+
+	table.clear(victimHubRuntime2.MiscFX.Conns)
+end
+
+local fn21
+
+fn21 = function(arg)
+	fn20()
+	if not tbl2.RemoveAnimations or not arg then
+		return
+	end
+
+	task.spawn(function()
+		local humanoid = arg:WaitForChild("Humanoid", 5)
+		if not humanoid or not victimHubRuntime2.Alive or not tbl2.RemoveAnimations then
+			return
+		end
+		local animator = humanoid:WaitForChild("Animator", 5)
+		if not animator then
+			return
+		end
+
+		for _, v10 in ipairs(animator:GetPlayingAnimationTracks()) do
+			v10:Stop()
+		end
+
+		victimHubRuntime2.MiscFX.Conns[#victimHubRuntime2.MiscFX.Conns + 1] = animator.AnimationPlayed:Connect(function(arg2)
+			arg2:Stop()
+		end)
+	end)
+end
+
+local fn22
+
+fn22 = function()
+	fn20()
+	local character = localPlayer.Character
+	if not character then
+		return
+	end
+
+	pcall(function()
+		local animate = character:FindFirstChild("Animate")
+
+		if animate and animate:IsA("LocalScript") then
+			local clone = animate:Clone()
+			animate:Destroy()
+			clone.Parent = character
+		end
+	end)
+end
+
+local fn23
+fn23 = nil
+
+fn23 = function(arg)
+	if victimHubRuntime2.MiscFX.GhostConn then
+		victimHubRuntime2:UntrackConnection(victimHubRuntime2.MiscFX.GhostConn)
+		victimHubRuntime2.MiscFX.GhostConn:Disconnect()
+		victimHubRuntime2.MiscFX.GhostConn = nil
+	end
+
+	if not arg then
+		return
+	end
+
+	pcall(function()
+		local map = v2:FindFirstChild("Map")
+		local ghostShipInterior = map and map:FindFirstChild("GhostShipInterior")
+
+		if ghostShipInterior then
+			for _, child in ipairs(ghostShipInterior:GetChildren()) do
+				if child.Name ~= "Teleport" and child.Name ~= "TeleportSpawn" then
+					child:Destroy()
+				end
+			end
+		end
+
+		if map then
+			victimHubRuntime2.MiscFX.GhostConn = victimHubRuntime2:TrackConnection(map.ChildAdded:Connect(function(child)
+				if child.Name == "GhostShipInterior" then
+					task.wait(0.1)
+
+					if tbl2.RemoveGhostShip then
+						fn23(true)
+					end
+				end
+			end))
+		end
+	end)
+end
+
+local fn24
+
+fn24 = function(arg)
+	if victimHubRuntime2.MiscFX.WaterThread then
+		task.cancel(victimHubRuntime2.MiscFX.WaterThread)
+		victimHubRuntime2.MiscFX.WaterThread = nil
+	end
+
+	local function fn25(arg2)
+		pcall(function()
+			local map = v2:FindFirstChild("Map")
+			map = map and map:FindFirstChild("WaterBase-Plane")
+
+			if map then
+				map.Size = Vector3.new(1000, arg2, 1000)
+			end
+		end)
+	end
+
+	if arg then
+		victimHubRuntime2.MiscFX.WaterThread = task.spawn(function()
+			while victimHubRuntime2.Alive and tbl2.WalkOnWater do
+				fn25(112)
+				task.wait(0.2)
+			end
+		end)
+	else
+		fn25(80)
+	end
+end
+
+local fn25
+
+fn25 = function()
+	local cameraMaxZoomDistance = tonumber(tbl2.CameraMaxZoom) or 128
+
+	if cameraMaxZoomDistance > 0 then
+		localPlayer.CameraMaxZoomDistance = cameraMaxZoomDistance
+		localPlayer.CameraMinZoomDistance = 0.5
+	else
+		localPlayer.CameraMaxZoomDistance = 128
+		localPlayer.CameraMinZoomDistance = 0.5
+	end
+end
+
+victimHubRuntime2:TrackConnection(localPlayer.CharacterAdded:Connect(function(character)
+	task.wait(0.5)
+	if not victimHubRuntime2.Alive then
+		return
+	end
+
+	if tbl2.RemoveAnimations then
+		fn21(character)
+	end
+
+	fn25()
+end))
+
+if tbl2.RemoveGhostShip then
+	fn23(true)
+end
+
+if tbl2.WalkOnWater then
+	fn24(true)
+end
+
+fn25()
+local tbl4, fn26, fn27, fn28, fn29, fn30
+
+do
+	local function fn31(arg, arg2, arg3, arg4, arg5)
+		local n = 0
+		local thread = nil
+		local flag4 = false
+
+		local function fn32()
+			n += 1
+			flag4 = false
+
+			if thread and thread ~= coroutine.running() then
+				task.cancel(thread)
+			end
+
+			thread = nil
+
+			if arg4 then
+				pcall(arg4)
+			end
+		end
+
+		return {
+			Start = function()
+				fn32()
+				n += 1
+				local v10 = n
+				flag4 = true
+
+				thread = task.spawn(function()
+					while true do
+						if victimHubRuntime2.Alive and n == v10 then
+							task.wait(type(arg) == "function" and arg() or arg)
+
+							if not (not victimHubRuntime2.Alive or n ~= v10) then
+								if arg2() then
+									local ok, result = pcall(arg3)
+
+									if not ok then
+										warn("[Looper] " .. tostring(result))
+									end
+
+									continue
+								elseif not arg5 then
+									fn32()
+									break
+								else
+									continue
+								end
+							end
+						end
+
+						break
+					end
+
+					flag4 = false
+				end)
+			end,
+			Stop = fn32,
+			Active = function()
+				return flag4
+			end,
+		}
+	end
+
+	local function fn32()
+		local character = localPlayer.Character
+		if not character then
+			return nil
+		end
+		local awakening = character:FindFirstChild("Awakening")
+		if awakening then
+			return awakening
+		end
+		local backpack = localPlayer:FindFirstChild("Backpack")
+		return backpack and backpack:FindFirstChild("Awakening")
+	end
+
+	tbl4 = {
+		Haki = fn31(function()
+			return tbl2.HakiCheckInterval
+		end, function()
+			return tbl2.AutoHaki
+		end, function()
+			local character = localPlayer.Character
+
+			if character and not character:FindFirstChild("HasBuso") then
+				pcall(function()
+					v5:InvokeServer("Buso")
+				end)
+			end
+		end),
+		Ken = fn31(function()
+			return tbl2.KenCheckInterval
+		end, function()
+			return tbl2.AutoKen
+		end, function()
+			pcall(function()
+				v6:FireServer("Ken", true)
+			end)
+		end),
+		PvP = fn31(function()
+			return tbl2.PvPEnableInterval
+		end, function()
+			return tbl2.AutoPvP
+		end, function()
+			pcall(function()
+				v5:InvokeServer("EnablePvp")
+			end)
+		end),
+		V4 = fn31(nil, function()
+			return tbl2.AutoV4
+		end, function()
+			local lastV4 = victimHubRuntime2.S.lastV4
+			if os.clock() - lastV4 < tbl2.V4Cooldown then
+				return
+			end
+			local character = localPlayer.Character
+			if not character then
+				return
+			end
+			local stun = character:FindFirstChild("Stun")
+			if stun and stun.Value > 0 then
+				return
+			end
+			local busy = character:FindFirstChild("Busy")
+			if busy and busy.Value then
+				return
+			end
+			local raceEnergy = character:FindFirstChild("RaceEnergy")
+			if raceEnergy and raceEnergy.Value < 1 then
+				return
+			end
+			local raceTransformed = character:FindFirstChild("RaceTransformed")
+			if raceTransformed and raceTransformed.Value then
+				return
+			end
+			local v10 = fn32()
+			if not v10 then
+				return
+			end
+			local remoteFunction = v10:FindFirstChildWhichIsA("RemoteFunction")
+			if not remoteFunction then
+				return
+			end
+			remoteFunction:InvokeServer(true)
+			victimHubRuntime2.S.lastV4 = os.clock()
+		end),
+		V3 = fn31(function()
+			return tbl2.V3CheckInterval
+		end, function()
+			return tbl2.AutoV3
+		end, function()
+			pcall(function()
+				v6:FireServer("ActivateAbility")
+			end)
+		end),
+	}
+
+	fn26 = nil
+
+	local function fn33()
+		local placeId = game.PlaceId
+		if placeId == 4442272183 or placeId == 79091703265657 then
+			return Vector3.new(923, 126, 32852)
+		end
+
+		if placeId == 7449423635 or placeId == 100117331123089 then
+			return Vector3.new(-5097.9316, 316.44702, -3142.666)
+		end
+		return nil
+	end
+
+	fn27 = function()
+		fn26()
+		victimHubRuntime2.S.PanicFleeGen = victimHubRuntime2.S.PanicFleeGen + 1
+		victimHubRuntime2.S.PanicFleeRunning = true
+	end
+
+	fn26 = function()
+		victimHubRuntime2.S.PanicFleeGen = victimHubRuntime2.S.PanicFleeGen + 1
+		victimHubRuntime2.S.PanicFleeRunning = false
+	end
+
+	task.spawn(function()
+		while victimHubRuntime2.Alive and task.wait(0.05) do
+			if tbl2.PanicFlee and victimHubRuntime2.S.PanicFleeRunning then
+				local character = localPlayer.Character
+
+				if character then
+					local humanoid = character:FindFirstChild("Humanoid")
+
+					if not (not humanoid or humanoid.MaxHealth <= 0) then
+						if humanoid.Health > tbl2.PanicFleeResetHealth then
+							victimHubRuntime2.S.PanicFleeOnCooldown = false
+						end
+
+						if not victimHubRuntime2.S.PanicFleeOnCooldown then
+							if not (humanoid.Health >= tbl2.PanicFleeHealthThreshold) then
+								local panicFleeNextRun = victimHubRuntime2.S.PanicFleeNextRun
+
+								if not (os.clock() < panicFleeNextRun) then
+									local v10 = fn33()
+
+									if v10 then
+										for i = 1, tbl2.PanicFleeAttempts do
+											if fn9 then
+												fn9(0.5)
+											end
+
+											pcall(function()
+												v5:InvokeServer("requestEntrance", v10)
+											end)
+
+											task.wait(0.1)
+										end
+
+										victimHubRuntime2.S.PanicFleeOnCooldown = true
+										local panicFleeCooldown = tbl2.PanicFleeCooldown
+										victimHubRuntime2.S.PanicFleeNextRun = os.clock() + panicFleeCooldown
+									end
+								end
+							end
+						end
+					end
+				end
+			end
+		end
+	end)
+
+	local s = victimHubRuntime2.S
+	victimHubRuntime2.S.ESPObjects = {}
+	s.ESPMap = {}
+	victimHubRuntime2.S.ESPPlayerConns = {}
+	victimHubRuntime2.S.ESPPlayerData = {}
+
+	local function fn34(arg)
+		if not arg then
+			return { level = "?", fruit = "None", bounty = 0 }
+		end
+		local tbl5 = victimHubRuntime2.S.ESPPlayerData[arg]
+
+		if not tbl5 then
+			tbl5 = { level = "?", fruit = "None", bounty = 0, lastUpdate = 0 }
+			victimHubRuntime2.S.ESPPlayerData[arg] = tbl5
+		end
+
+		local now = os.clock()
+
+		if now - tbl5.lastUpdate > 5 then
+			pcall(function()
+				tbl5.level = arg.Data.Level.Value
+			end)
+
+			pcall(function()
+				tbl5.fruit = tostring(arg.Data.DevilFruit.Value)
+			end)
+
+			pcall(function()
+				local leaderstats = arg:FindFirstChild("leaderstats")
+				local bountyHonor = leaderstats and leaderstats:FindFirstChild("Bounty/Honor")
+				tbl5.bounty = bountyHonor and bountyHonor.Value or 0
+			end)
+
+			tbl5.lastUpdate = now
+		end
+
+		return tbl5
+	end
+
+	local function fn35(arg)
+		if arg >= 1e9 then
+			return ("%.1fB"):format(arg / 1e9)
+		end
+
+		if arg >= 1000000 then
+			return ("%.1fM"):format(arg / 1000000)
+		end
+
+		if arg >= 1000 then
+			return ("%.1fK"):format(arg / 1000)
+		end
+		return tostring(arg)
+	end
+
+	local function fn36(arg)
+		if not arg then
+			return
+		end
+
+		for i = #victimHubRuntime2.S.ESPObjects, 1, -1 do
+			local v10 = victimHubRuntime2.S.ESPObjects[i]
+
+			if v10.target == arg then
+				if v10.billboard then
+					victimHubRuntime2:UntrackInstance(v10.billboard)
+
+					pcall(function()
+						v10.billboard:Destroy()
+					end)
+				end
+
+				if v10.highlight then
+					victimHubRuntime2:UntrackInstance(v10.highlight)
+
+					pcall(function()
+						v10.highlight:Destroy()
+					end)
+				end
+
+				victimHubRuntime2.S.ESPMap[arg] = nil
+				table.remove(victimHubRuntime2.S.ESPObjects, i)
+			end
+		end
+	end
+
+	fn28 = function()
+		for _, espObject in ipairs(victimHubRuntime2.S.ESPObjects) do
+			if espObject then
+				if espObject.billboard then
+					victimHubRuntime2:UntrackInstance(espObject.billboard)
+
+					pcall(function()
+						espObject.billboard:Destroy()
+					end)
+				end
+
+				if espObject.highlight then
+					victimHubRuntime2:UntrackInstance(espObject.highlight)
+
+					pcall(function()
+						espObject.highlight:Destroy()
+					end)
+				end
+			end
+		end
+
+		local s2 = victimHubRuntime2.S
+		victimHubRuntime2.S.ESPObjects = {}
+		s2.ESPMap = {}
+	end
+
+	local function fn37(arg, arg2)
+		if not victimHubRuntime2.Alive then
+			return
+		end
+		local head = arg:FindFirstChild("Head")
+		if not head then
+			return
+		end
+
+		if not victimHubRuntime2.S.ESPMap[arg] then
+			local neonESP = head:FindFirstChild("NeonESP")
+
+			if neonESP then
+				pcall(function()
+					neonESP:Destroy()
+				end)
+			end
+		end
+
+		local billboardGui = Instance.new("BillboardGui")
+		billboardGui.Name = "NeonESP"
+		billboardGui.Adornee = head
+		billboardGui.Size = UDim2.new(0, tbl2.ESPSizeX, 0, tbl2.ESPTextSize + 14)
+		billboardGui.StudsOffset = Vector3.new(0, tbl2.ESPStudsOffset, 0)
+		billboardGui.AlwaysOnTop = true
+		billboardGui.Parent = head
+		victimHubRuntime2:TrackInstance(billboardGui)
+		local textLabel = Instance.new("TextLabel")
+		textLabel.BackgroundTransparency = 1
+		textLabel.Size = UDim2.new(1, 0, 1, -8)
+		textLabel.Text = arg.Name
+		textLabel.Font = Enum.Font.GothamBold
+		textLabel.TextSize = tbl2.ESPTextSize
+		textLabel.TextColor3 = Color3.new(1, 1, 1)
+		textLabel.TextStrokeTransparency = tbl2.ESPStrokeTransparency
+		textLabel.RichText = true
+		textLabel.TextXAlignment = Enum.TextXAlignment.Center
+		textLabel.Parent = billboardGui
+		local uiStroke = Instance.new("UIStroke")
+		uiStroke.Color = Color3.fromRGB(tbl2.ESPStrokeColorR, tbl2.ESPStrokeColorG, tbl2.ESPStrokeColorB)
+		uiStroke.Thickness = tbl2.ESPStrokeThickness
+		uiStroke.Transparency = tbl2.ESPStrokeUITransparency
+		uiStroke.Parent = textLabel
+		local frame = Instance.new("Frame")
+		frame.Name = "HealthBar"
+		frame.BackgroundColor3 = Color3.fromRGB(20, 20, 24)
+		frame.BackgroundTransparency = 0.15
+		frame.BorderSizePixel = 0
+		frame.Size = UDim2.new(0.85, 0, 0, 3)
+		frame.Position = UDim2.new(0.075, 0, 1, -4)
+		frame.Parent = billboardGui
+		local uiCorner = Instance.new("UICorner")
+		uiCorner.CornerRadius = UDim.new(1, 0)
+		uiCorner.Parent = frame
+		local frame2 = Instance.new("Frame")
+		frame2.Name = "Fill"
+		frame2.BackgroundColor3 = Color3.fromRGB(80, 255, 80)
+		frame2.BorderSizePixel = 0
+		frame2.Size = UDim2.new(1, 0, 1, 0)
+		frame2.Parent = frame
+		local uiCorner2 = Instance.new("UICorner")
+		uiCorner2.CornerRadius = UDim.new(1, 0)
+		uiCorner2.Parent = frame2
+		local humanoid = arg:FindFirstChildOfClass("Humanoid")
+		victimHubRuntime2.S.ESPMap[arg] = true
+
+		table.insert(victimHubRuntime2.S.ESPObjects, {
+			billboard = billboardGui,
+			label = textLabel,
+			barFill = frame2,
+			head = head,
+			hum = humanoid,
+			hrp = arg:FindFirstChild("HumanoidRootPart"),
+			target = arg,
+			player = arg2,
+			name = arg.Name,
+			maxHp = humanoid and humanoid.MaxHealth or 0,
+			highlight = nil,
+			lastText = "",
+		})
+	end
+
+	fn29 = function()
+		if not tbl2.ESP then
+			return
+		end
+
+		for i = #victimHubRuntime2.S.ESPObjects, 1, -1 do
+			local v10 = victimHubRuntime2.S.ESPObjects[i]
+
+			if not v10.target or not v10.target.Parent or not v10.head or not v10.head.Parent or not v10.hrp or not v10.hrp.Parent or not v10.billboard or not v10.billboard.Parent then
+				if v10.billboard then
+					victimHubRuntime2:UntrackInstance(v10.billboard)
+					v10.billboard:Destroy()
+				end
+
+				if v10.highlight then
+					victimHubRuntime2:UntrackInstance(v10.highlight)
+
+					pcall(function()
+						v10.highlight:Destroy()
+					end)
+				end
+
+				victimHubRuntime2.S.ESPMap[v10.target] = nil
+				table.remove(victimHubRuntime2.S.ESPObjects, i)
+			else
+				if not v10.hum or not v10.hum.Parent then
+					v10.hum = v10.target:FindFirstChildOfClass("Humanoid")
+				end
+
+				if v10.hum then
+					v10.maxHp = v10.hum.MaxHealth
+				end
+			end
+		end
+
+		local function fn38(arg, arg2)
+			if arg and arg:FindFirstChild("Head") and not victimHubRuntime2.S.ESPMap[arg] then
+				fn37(arg, arg2)
+			end
+		end
+
+		for _, player in ipairs(Players:GetPlayers()) do
+			if player ~= localPlayer and player.Character then
+				fn38(player.Character, player)
+			end
+		end
+	end
+
+	task.spawn(function()
+		while victimHubRuntime2.Alive and task.wait(tbl2.ESPUpdateInterval) do
+			if tbl2.ESP then
+				pcall(function()
+					local humanoidRootPart = localPlayer.Character and localPlayer.Character:FindFirstChild("HumanoidRootPart")
+
+					if humanoidRootPart then
+						for _, espObject in ipairs(victimHubRuntime2.S.ESPObjects) do
+							if espObject.billboard and espObject.billboard.Parent and espObject.hrp and espObject.hrp.Parent then
+								local lastDistQ = math.floor((humanoidRootPart.Position - espObject.hrp.Position).Magnitude)
+								local enabled = lastDistQ <= tbl2.ESPMaxDistance
+
+								if espObject.billboard.Enabled ~= enabled then
+									espObject.billboard.Enabled = enabled
+								end
+
+								if enabled then
+									local hum = espObject.hum and espObject.hum.Parent and espObject.hum or nil
+
+									if not hum and espObject.target.Parent then
+										hum = espObject.target:FindFirstChildOfClass("Humanoid")
+										espObject.hum = hum
+									end
+
+									local lastKenActive = false
+									local lastDodges = 0
+									local lastMaxDodges = 0
+
+									if hum then
+										local player = espObject.player and espObject.player.Parent == Players and espObject.player
+
+										if player then
+											local attribute = player:GetAttribute("KenActive")
+
+											if attribute ~= nil then
+												lastKenActive = attribute and true or false
+												lastDodges = player:GetAttribute("KenDodgesLeft") or 0
+												lastMaxDodges = player:GetAttribute("KenMaxDodges") or 0
+											end
+										end
+									end
+
+									local espShowLevel = tbl2.ESPShowLevel or tbl2.ESPShowBounty or tbl2.ESPShowFruit or tbl2.ESPShowPvP
+									local v10 = nil
+
+									if espShowLevel then
+										local v11 = fn34(espObject.player)
+										local flag4 = espObject.player and espObject.player.Parent == Players and espObject.player:GetAttribute("PvpDisabled") ~= true
+										local concat = table.concat
+										local tbl5 = {}
+										local str = tbl2.ESPShowLevel and tostring(v11.level) or ""
+										local espShowBounty = tbl2.ESPShowBounty and fn35(v11.bounty) or ""
+										local str2 = tbl2.ESPShowFruit and tostring(v11.fruit) or ""
+										local str3 = tbl2.ESPShowPvP and (flag4 and "1" or "0") or ""
+										tbl5[1] = str
+										tbl5[2] = espShowBounty
+										tbl5[3] = str2
+										tbl5[4] = str3
+										v10 = concat(tbl5, "|")
+									end
+
+									if espObject.lastDistQ ~= lastDistQ or espObject.lastKenActive ~= lastKenActive or espObject.lastDodges ~= lastDodges or espObject.lastMaxDodges ~= lastMaxDodges or espObject.lastExtras ~= v10 then
+										local n = 255
+										local n2 = 165
+										local n3 = 0
+
+										if not lastKenActive then
+											n = 120
+											n2 = 120
+											n3 = 126
+										end
+
+										local text = string.format("<font color='rgb(%d,%d,%d)'>%s</font>  <font color='rgb(150,150,158)'>%dm</font>", tbl2.ESPColorR, tbl2.ESPColorG, tbl2.ESPColorB, espObject.name, lastDistQ)
+
+										if hum then
+											text ..= string.format("  <font color='rgb(%d,%d,%d)'>KEN %d/%d</font>", n, n2, n3, lastDodges, lastMaxDodges)
+										end
+
+										local n4 = 1
+
+										if v10 then
+											local v11 = fn34(espObject.player)
+											local tbl5 = {}
+
+											if tbl2.ESPShowLevel then
+												tbl5[#tbl5 + 1] = string.format("<font color='rgb(120,220,120)'>Lv.%s</font>", tostring(v11.level))
+											end
+
+											if tbl2.ESPShowBounty then
+												tbl5[#tbl5 + 1] = string.format("<font color='rgb(255,215,0)'>%s</font>", fn35(v11.bounty))
+											end
+
+											if tbl2.ESPShowPvP then
+												if espObject.player and espObject.player.Parent == Players and espObject.player:GetAttribute("PvpDisabled") ~= true then
+													tbl5[#tbl5 + 1] = "<font color='rgb(255,80,80)'>PvP</font>"
+												else
+													tbl5[#tbl5 + 1] = "<font color='rgb(80,255,120)'>PvP Off</font>"
+												end
+											end
+
+											if #tbl5 > 0 then
+												text ..= "\n" .. table.concat(tbl5, "  ")
+												n4 = 2
+											end
+
+											if tbl2.ESPShowFruit then
+												text ..= string.format("\n<font color='rgb(255,105,180)'>%s</font>", tostring(v11.fruit))
+												n4 += 1
+											end
+										end
+
+										espObject.billboard.Size = UDim2.new(0, tbl2.ESPSizeX, 0, tbl2.ESPTextSize + 14 + (n4 - 1) * (tbl2.ESPTextSize + 2))
+										espObject.label.Text = text
+										espObject.lastDistQ = lastDistQ
+										espObject.lastKenActive = lastKenActive
+										espObject.lastDodges = lastDodges
+										espObject.lastMaxDodges = lastMaxDodges
+										espObject.lastExtras = v10
+									end
+
+									if tbl2.ESPHighlight then
+										if not espObject.highlight or not espObject.highlight.Parent then
+											local highlight = Instance.new("Highlight")
+											highlight.Name = "VictimHubESPHighlight"
+											highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+											highlight.FillTransparency = 0.5
+											highlight.OutlineTransparency = 0
+											highlight.Parent = espObject.target
+											victimHubRuntime2:TrackInstance(highlight)
+											espObject.highlight = highlight
+										end
+
+										espObject.highlight.FillColor = Color3.fromRGB(tbl2.ESPColorR, tbl2.ESPColorG, tbl2.ESPColorB)
+										espObject.highlight.OutlineColor = espObject.highlight.FillColor
+									elseif espObject.highlight then
+										victimHubRuntime2:UntrackInstance(espObject.highlight)
+
+										pcall(function()
+											espObject.highlight:Destroy()
+										end)
+
+										espObject.highlight = nil
+									end
+
+									if hum and espObject.barFill then
+										local n = math.clamp(hum.Health, 0, hum.MaxHealth)
+
+										if espObject.maxHp < hum.MaxHealth then
+											espObject.maxHp = hum.MaxHealth
+										end
+
+										local lastPct = espObject.maxHp > 0 and n / espObject.maxHp or 0
+
+										if not espObject.lastPct or lastPct - espObject.lastPct > 0.01 or espObject.lastPct - lastPct > 0.01 then
+											espObject.barFill.Size = UDim2.new(lastPct, 0, 1, 0)
+											espObject.lastPct = lastPct
+										end
+
+										local lastBand = lastPct > 0.6 and 3 or lastPct > 0.3 and 2 or 1
+
+										if espObject.lastBand ~= lastBand then
+											if lastBand == 3 then
+												espObject.barFill.BackgroundColor3 = Color3.fromRGB(80, 255, 80)
+											elseif lastBand == 2 then
+												espObject.barFill.BackgroundColor3 = Color3.fromRGB(255, 200, 50)
+											else
+												espObject.barFill.BackgroundColor3 = Color3.fromRGB(255, 60, 60)
+											end
+
+											espObject.lastBand = lastBand
+										end
+									end
+								end
+							end
+						end
+					end
+				end)
+			end
+		end
+	end)
+
+	local function fn38(arg)
+		if not arg or arg == localPlayer or victimHubRuntime2.S.ESPPlayerConns[arg] then
+			return
+		end
+		local tbl5 = {}
+		victimHubRuntime2.S.ESPPlayerConns[arg] = tbl5
+
+		tbl5[#tbl5 + 1] = victimHubRuntime2:TrackConnection(arg.CharacterAdded:Connect(function(character)
+			task.defer(function()
+				if victimHubRuntime2.Alive and tbl2.ESP and character and character.Parent then
+					fn37(character, arg)
+				end
+			end)
+		end))
+
+		tbl5[#tbl5 + 1] = victimHubRuntime2:TrackConnection(arg.CharacterRemoving:Connect(function(character)
+			fn36(character)
+		end))
+
+		if arg.Character and tbl2.ESP then
+			fn37(arg.Character, arg)
+		end
+	end
+
+	victimHubRuntime2:TrackConnection(Players.PlayerAdded:Connect(function(player)
+		fn38(player)
+	end))
+
+	table.insert(victimHubRuntime2.PlayerLeave, function(arg)
+		victimHubRuntime2.S.ESPPlayerData[arg] = nil
+		local v10 = victimHubRuntime2.S.ESPPlayerConns[arg]
+
+		if v10 then
+			for _, v11 in ipairs(v10) do
+				victimHubRuntime2:UntrackConnection(v11)
+
+				pcall(function()
+					v11:Disconnect()
+				end)
+			end
+
+			victimHubRuntime2.S.ESPPlayerConns[arg] = nil
+		end
+
+		if arg.Character then
+			fn36(arg.Character)
+		end
+	end)
+
+	for _, player in ipairs(Players:GetPlayers()) do
+		fn38(player)
+	end
+
+	task.spawn(function()
+		while victimHubRuntime2.Alive and task.wait(1) do
+			if tbl2.ESP then
+				pcall(fn29)
+			end
+		end
+	end)
+
+	local CollectionService = game:GetService("CollectionService")
+	victimHubRuntime2.PortalESP = { Objects = {}, VSites = {} }
+	local tbl5 = { ["Portal C"] = { 255, 170, 0 }, ["Portal V"] = { 0, 210, 255 }, Portal = { 255, 170, 0 } }
+
+	local function fn39(adornee, arg, arg2, arg3)
+		local billboardGui = Instance.new("BillboardGui")
+		billboardGui.Name = "VictimHubPortalESP"
+		billboardGui.Adornee = adornee
+		billboardGui.Size = UDim2.new(0, tbl2.ESPSizeX, 0, arg)
+		billboardGui.StudsOffset = Vector3.new(0, arg2, 0)
+		billboardGui.AlwaysOnTop = true
+		billboardGui.Parent = adornee
+		victimHubRuntime2:TrackInstance(billboardGui)
+		local textLabel = Instance.new("TextLabel")
+		textLabel.BackgroundTransparency = 1
+		textLabel.Size = UDim2.new(1, 0, 1, 0)
+		textLabel.Font = Enum.Font.GothamBold
+		textLabel.TextSize = tbl2.ESPTextSize
+		textLabel.TextColor3 = Color3.new(1, 1, 1)
+		textLabel.RichText = true
+		textLabel.TextXAlignment = Enum.TextXAlignment.Center
+		textLabel.Parent = billboardGui
+		local uiStroke = Instance.new("UIStroke")
+		uiStroke.Color = Color3.fromRGB(arg3[1], arg3[2], arg3[3])
+		uiStroke.Thickness = tbl2.ESPStrokeThickness
+		uiStroke.Transparency = tbl2.ESPStrokeUITransparency
+		uiStroke.Parent = textLabel
+		return billboardGui, textLabel
+	end
+
+	local function fn40(arg)
+		if arg:IsA("BasePart") then
+			return arg
+		end
+		return arg:FindFirstChildWhichIsA("BasePart", true)
+	end
+
+	local function fn41(arg)
+		local name2 = arg.Name
+		if name2:find("VPortal", 1, true) then
+			return "Portal V"
+		end
+
+		if name2:find("PortalTemplateC", 1, true) then
+			return "Portal C"
+		end
+
+		if typeof(arg:GetAttribute("FocusPosition")) == "Vector3" then
+			return "Portal C"
+		end
+		return "Portal"
+	end
+
+	local function fn42(arg)
+		if typeof(arg:GetAttribute("FocusPosition")) == "Vector3" then
+			return true
+		end
+
+		if CollectionService:HasTag(arg, "NearbyLoDFocus") then
+			return true
+		end
+		local name2 = arg.Name
+		if name2 == "PortalTemplateC" or name2 == "VPortal" then
+			return true
+		end
+
+		if name2 == "Portal" then
+			local v10 = fn40(arg)
+			if not v10 then
+				return false
+			end
+			local position = v10.Position
+
+			for _, object in pairs(victimHubRuntime2.PortalESP.Objects) do
+				if object.kind == "Portal V" and object.adornee and object.adornee.Parent and (object.adornee.Position - position).Magnitude <= 20 then
+					return true
+				end
+			end
+
+			for _, vSite in ipairs(victimHubRuntime2.PortalESP.VSites) do
+				if (vSite.pos - position).Magnitude <= 20 then
+					return true
+				end
+			end
+		end
+
+		return false
+	end
+
+	local function fn43(arg)
+		local v10 = victimHubRuntime2.PortalESP.Objects[arg]
+		if not v10 then
+			return
+		end
+
+		if v10.billboard then
+			victimHubRuntime2:UntrackInstance(v10.billboard)
+
+			pcall(function()
+				v10.billboard:Destroy()
+			end)
+		end
+
+		if v10.destPart then
+			victimHubRuntime2:UntrackInstance(v10.destPart)
+
+			if v10.destBillboard then
+				victimHubRuntime2:UntrackInstance(v10.destBillboard)
+			end
+
+			pcall(function()
+				v10.destPart:Destroy()
+			end)
+		end
+
+		if v10.kind == "Portal V" and v10.adornee then
+			local vSites = victimHubRuntime2.PortalESP.VSites
+			vSites[#vSites + 1] = { pos = v10.adornee.Position, expiry = os.clock() + 10 }
+		end
+
+		victimHubRuntime2.PortalESP.Objects[arg] = nil
+	end
+
+	fn30 = function()
+		for k in pairs(victimHubRuntime2.PortalESP.Objects) do
+			fn43(k)
+		end
+	end
+
+	local function fn44(arg)
+		for _, object in pairs(victimHubRuntime2.PortalESP.Objects) do
+			if object.adornee and object.adornee.Parent and (object.adornee.Position - arg).Magnitude <= 12 then
+				return true
+			end
+		end
+
+		return false
+	end
+
+	local function fn45(arg)
+		if not victimHubRuntime2.Alive then
+			return
+		end
+
+		if not (tbl2.PortalESP or tbl2.TweenToPortal) then
+			return
+		end
+
+		if victimHubRuntime2.PortalESP.Objects[arg] then
+			return
+		end
+		local v10 = fn40(arg)
+		if not v10 then
+			return
+		end
+		local v11 = fn41(arg)
+		local portal = tbl5[v11] or tbl5.Portal
+		local v12, v13 = fn39(v10, tbl2.ESPTextSize + 14, tbl2.ESPStudsOffset + 4, portal)
+
+		local tbl6 = {
+			billboard = v12,
+			label = v13,
+			adornee = v10,
+			kind = v11,
+			lastText = "",
+			destLastText = "",
+			r = portal[1],
+			g = portal[2],
+			b = portal[3],
+		}
+
+		local attribute = arg:GetAttribute("FocusPosition")
+
+		if typeof(attribute) == "Vector3" and not fn44(attribute) then
+			local part = Instance.new("Part")
+			part.Name = "VictimHubPortalDest"
+			part.Size = Vector3.one
+			part.Transparency = 1
+			part.Anchored = true
+			part.CanCollide = false
+			part.CanQuery = false
+			part.CanTouch = false
+			part.CFrame = CFrame.new(attribute)
+			part.Parent = v2
+			victimHubRuntime2:TrackInstance(part)
+			local v14, v15 = fn39(part, tbl2.ESPTextSize + 14, tbl2.ESPStudsOffset + 2, portal)
+			tbl6.destPart = part
+			tbl6.destBillboard = v14
+			tbl6.destLabel = v15
+		end
+
+		victimHubRuntime2.PortalESP.Objects[arg] = tbl6
+	end
+
+	task.spawn(function()
+		local worldOrigin = v2:WaitForChild("_WorldOrigin", 15)
+		if not worldOrigin then
+			return
+		end
+
+		victimHubRuntime2:TrackConnection(worldOrigin.ChildAdded:Connect(function(child)
+			if (tbl2.PortalESP or tbl2.TweenToPortal) and fn42(child) then
+				task.defer(fn45, child)
+			end
+		end))
+	end)
+
+	task.spawn(function()
+		while victimHubRuntime2.Alive and task.wait(tbl2.PortalESPUpdateInterval) do
+			pcall(function()
+				if not (tbl2.PortalESP or tbl2.TweenToPortal) then
+					if next(victimHubRuntime2.PortalESP.Objects) then
+						fn30()
+					end
+
+					return
+				end
+
+				for k in pairs(victimHubRuntime2.PortalESP.Objects) do
+					if not k.Parent then
+						fn43(k)
+					end
+				end
+
+				local worldOrigin = fn4("_WorldOrigin")
+
+				if worldOrigin then
+					for _, child in ipairs(worldOrigin:GetChildren()) do
+						if not victimHubRuntime2.PortalESP.Objects[child] and fn42(child) then
+							fn45(child)
+						end
+					end
+				end
+
+				local vSites = victimHubRuntime2.PortalESP.VSites
+
+				for i = #vSites, 1, -1 do
+					if vSites[i].expiry < os.clock() then
+						table.remove(vSites, i)
+					end
+				end
+
+				local humanoidRootPart = localPlayer.Character and localPlayer.Character:FindFirstChild("HumanoidRootPart")
+
+				for k, object in pairs(victimHubRuntime2.PortalESP.Objects) do
+					if not object.adornee.Parent then
+						local v10 = fn40(k)
+
+						if v10 then
+							object.adornee = v10
+							object.billboard.Adornee = v10
+							object.billboard.Parent = v10
+						end
+					end
+
+					if object.kind == "Portal" then
+						local position = object.adornee.Position
+						local flag4 = false
+
+						for _, object2 in pairs(victimHubRuntime2.PortalESP.Objects) do
+							if object2 ~= object and object2.kind == "Portal V" and object2.adornee.Parent and (object2.adornee.Position - position).Magnitude <= 20 then
+								flag4 = true
+								break
+							end
+						end
+
+						if not flag4 then
+							for _, vSite in ipairs(vSites) do
+								if (vSite.pos - position).Magnitude <= 20 then
+									flag4 = true
+									break
+								end
+							end
+						end
+
+						if flag4 then
+							object.kind = "Portal V"
+						end
+					end
+
+					if object.destPart and fn44(object.destPart.Position) then
+						victimHubRuntime2:UntrackInstance(object.destPart)
+
+						if object.destBillboard then
+							victimHubRuntime2:UntrackInstance(object.destBillboard)
+						end
+
+						pcall(function()
+							object.destPart:Destroy()
+						end)
+
+						object.destPart = nil
+						object.destBillboard = nil
+						object.destLabel = nil
+					end
+
+					if humanoidRootPart and object.adornee.Parent then
+						local n = math.floor((humanoidRootPart.Position - object.adornee.Position).Magnitude)
+						local enabled = tbl2.PortalESP and n <= tbl2.PortalESPMaxDistance
+						object.billboard.Enabled = enabled
+
+						if object.destBillboard then
+							object.destBillboard.Enabled = enabled
+						end
+
+						if enabled then
+							local text = string.format("<font color='rgb(%d,%d,%d)'>%s</font>  <font color='rgb(120,120,120)'>%dm</font>", object.r, object.g, object.b, object.kind, n)
+
+							if text ~= object.lastText then
+								object.label.Text = text
+								object.lastText = text
+							end
+
+							if object.destLabel then
+								local text2 = string.format("<font color='rgb(%d,%d,%d)'>%s Exit</font>", object.r, object.g, object.b, object.kind)
+
+								if text2 ~= object.destLastText then
+									object.destLabel.Text = text2
+									object.destLastText = text2
+								end
+							end
+						end
+					end
+				end
+			end)
+		end
+	end)
+
+	local function fn46()
+		return v2.GetServerTimeNow and v2:GetServerTimeNow() or os.clock()
+	end
+
+	local function fn47(arg)
+		local v10 = victimHubRuntime2.S.FlagPayloadByTimeValue[arg]
+		if v10 then
+			return v10
+		end
+		local v11 = table.create(#b7n)
+
+		for i = 1, #b7n do
+			v11[i] = string.char(bxor_(b7n[i], arg))
+		end
+
+		local str = table.concat(v11)
+		victimHubRuntime2.S.FlagPayloadByTimeValue[arg] = str
+		return str
+	end
+
+	local function fn48()
+		local v10 = ipairs
+		local tbl6 = {}
+		local util = ReplicatedStorage:FindFirstChild("Util")
+		local common = ReplicatedStorage:FindFirstChild("Common")
+		local remotes = ReplicatedStorage:FindFirstChild("Remotes")
+		local assets = ReplicatedStorage:FindFirstChild("Assets")
+		local findFirstChild = ReplicatedStorage.FindFirstChild
+		tbl6[1] = util
+		tbl6[2] = common
+		tbl6[3] = remotes
+		tbl6[4] = assets
+
+		do
+			local values = table.pack(findFirstChild(ReplicatedStorage, "FX"))
+			table.move(values, 1, values.n, 5, tbl6)
+		end
+
+		for _, v11 in v10(tbl6) do
+			if v11 then
+				for _, child in ipairs(v11:GetChildren()) do
+					if child:IsA("RemoteEvent") and child:GetAttribute("Id") then
+						local s2 = victimHubRuntime2.S
+						victimHubRuntime2.S.FlagId = child:GetAttribute("Id")
+						s2.FlagRemote = child
+						return
+					end
+				end
+			end
+		end
+	end
+
+	local function fn50()
+		local character = localPlayer.Character
+		local backpack = localPlayer:FindFirstChild("Backpack")
+
+		if backpack then
+			for _, child in ipairs(backpack:GetChildren()) do
+				if child:GetAttribute("WeaponType") == "Demon Fruit" then
+					return child
+				end
+			end
+		end
+
+		if character then
+			for _, child in ipairs(character:GetChildren()) do
+				if child:GetAttribute("WeaponType") == "Demon Fruit" then
+					return child
+				end
+			end
+		end
+	end
+
+	tbl4.Fruit = fn31(0.05, function()
+		return tbl2.FruitM1 and tbl2.IsRunning
+	end, function()
+		local lFF2 = victimHubRuntime2.S.LFF2
+		if os.clock() - lFF2 < tbl2.FruitM1Cooldown then
+			return
+		end
+		victimHubRuntime2.S.LFF2 = os.clock()
+		local character = localPlayer.Character
+		if not character or not character:FindFirstChild("HumanoidRootPart") then
+			return
+		end
+		local v10 = fn50()
+		if not v10 then
+			return
+		end
+		local leftClickRemote = v10:FindFirstChild("LeftClickRemote")
+		if not leftClickRemote then
+			return
+		end
+		local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+		if not humanoidRootPart then
+			return
+		end
+		local v11 = fn15()
+		local vector = Vector3.new(0, 0, -1)
+
+		if v11 then
+			local humanoidRootPart2 = v11.Parent and v11.Parent:FindFirstChild("HumanoidRootPart")
+
+			if humanoidRootPart2 then
+				vector = (humanoidRootPart2.Position - humanoidRootPart.Position).Unit
+			end
+		end
+
+		for i = 1, 5 do
+			if tbl4.Fruit.Active() then
+				pcall(function()
+					leftClickRemote:FireServer(vector, i, true)
+				end)
+
+				task.wait(0.15)
+				continue
+			end
+
+			break
+		end
+	end, nil, true)
+
+end
+
+victimHubRuntime2.S.TwRunning = false
+local fn31, fn32, flag4, n, n2
+
+do
+	local function fn33(arg)
+		local name2 = arg.Parent.Name
+
+		if victimHubRuntime2.S.LastInstaTargetName ~= name2 then
+			if victimHubRuntime2.S.LastInstaTargetName then
+				victimHubRuntime2.S.PlayerPositionHistory[victimHubRuntime2.S.LastInstaTargetName] = nil
+			end
+
+			victimHubRuntime2.S.LastInstaTargetName = name2
+		end
+
+		if not victimHubRuntime2.S.PlayerPositionHistory[name2] then
+			victimHubRuntime2.S.PlayerPositionHistory[name2] = {
+				positions = {},
+				timestamps = {},
+				head = 1,
+				count = 0,
+				capacity = tbl2.PredictionSamples,
+				lastUpdate = 0,
+				lastPos = nil,
+			}
+		end
+
+		local v10 = victimHubRuntime2.S.PlayerPositionHistory[name2]
+		local now = os.clock()
+		local position = arg.Position
+		local predictionSamples = tbl2.PredictionSamples
+
+		if v10.capacity ~= predictionSamples then
+			local count = v10.count or #v10.positions
+			local head = v10.head or 1
+			local capacity = v10.capacity or count
+			local positions = {}
+			local timestamps = {}
+			local count2 = 0
+
+			for i = math.max(1, count - predictionSamples + 1), count do
+				count2 += 1
+				local n3 = v10.head and (head + i - 2) % capacity + 1 or i
+				positions[count2] = v10.positions[n3]
+				timestamps[count2] = v10.timestamps[n3]
+			end
+
+			v10.positions = positions
+			v10.timestamps = timestamps
+			v10.head = 1
+			v10.count = count2
+			v10.capacity = predictionSamples
+		end
+
+		if v10.lastPos and (position - v10.lastPos).Magnitude > tbl2.InstaMaxJump then
+			v10.positions = { position }
+			v10.timestamps = { now }
+			v10.head = 1
+			v10.count = 1
+			v10.capacity = predictionSamples
+			v10.lastPos = position
+			v10.lastUpdate = now
+		elseif tbl2.PredictionSampleInterval <= now - v10.lastUpdate then
+			local n3
+
+			if v10.count < predictionSamples then
+				n3 = (v10.head + v10.count - 1) % predictionSamples + 1
+				v10.count = v10.count + 1
+			else
+				n3 = v10.head
+				v10.head = v10.head % predictionSamples + 1
+			end
+
+			v10.positions[n3] = position
+			v10.timestamps[n3] = now
+			v10.lastUpdate = now
+			v10.lastPos = position
+		end
+	end
+
+	victimHubRuntime2.S.TwGen = 0
+
+	fn31 = function()
+		victimHubRuntime2.S.TwGen = victimHubRuntime2.S.TwGen + 1
+		victimHubRuntime2.S.TwRunning = false
+		victimHubRuntime2.S.InstaActive = false
+		victimHubRuntime2.S.CurrentTwMode = nil
+
+		if victimHubRuntime2.S.ActiveTween then
+			victimHubRuntime2.S.ActiveTween:Cancel()
+			victimHubRuntime2.S.ActiveTween = nil
+		end
+
+		if victimHubRuntime2.S.TweenPlatform then
+			victimHubRuntime2:UntrackInstance(victimHubRuntime2.S.TweenPlatform)
+			victimHubRuntime2.S.TweenPlatform:Destroy()
+			victimHubRuntime2.S.TweenPlatform = nil
+		end
+
+		local s = victimHubRuntime2.S
+		victimHubRuntime2.S.PlayerPositionHistory = {}
+		s.LastInstaTargetName = nil
+		victimHubRuntime2.S.CurrentTargetPlayer = nil
+		local s2 = victimHubRuntime2.S
+		victimHubRuntime2.S.TwLastPos = nil
+		s2.TwLastAt = 0
+	end
+
+	local function fn34(arg)
+		arg.AssemblyLinearVelocity = Vector3.zero
+	end
+
+	local function fn35(arg, assemblyLinearVelocity)
+		arg.AssemblyLinearVelocity = assemblyLinearVelocity
+	end
+
+	local function fn36(arg)
+		local now = os.clock()
+		local twLastPos = victimHubRuntime2.S.TwLastPos
+		local twLastAt = victimHubRuntime2.S.TwLastAt or 0
+		local s = victimHubRuntime2.S
+		victimHubRuntime2.S.TwLastPos = arg.Position
+		s.TwLastAt = now
+		if not twLastPos then
+			return
+		end
+		local n3 = now - twLastAt
+		if n3 <= 0.01 then
+			return
+		end
+		local n4 = (arg.Position - twLastPos) / n3
+		local magnitude = n4.Magnitude
+		if magnitude < 0.5 then
+			pcall(fn34, arg)
+			return
+		end
+		local n5 = (tbl2.TweenSpeed or 300) * 1.5
+
+		if n5 < magnitude then
+			n4 *= n5 / magnitude
+		end
+
+		pcall(fn35, arg, n4)
+	end
+
+	local function fn37(arg)
+		if victimHubRuntime2.S.TweenPlatform and arg then
+			victimHubRuntime2.S.TweenPlatform.CFrame = CFrame.new(arg.Position - Vector3.new(0, 3.2, 0))
+		end
+	end
+
+	local function fn38(arg, arg2, arg3, arg4, arg5, arg6)
+		local position = fn10(arg2, victimHubRuntime2.S.PlayerPositionHistory[arg2.Parent.Name] or { positions = {} }, tbl2.NoPredict) or arg2.Position
+		local n3
+
+		if arg3 then
+			local vector = Vector3.new
+			local circleOrbitSpeed = tbl2.CircleOrbitSpeed
+			local circleRadius = tbl2.CircleRadius
+			local n4 = math.cos(os.clock() * circleOrbitSpeed) * circleRadius
+			local circleOrbitSpeed2 = tbl2.CircleOrbitSpeed
+			local circleRadius2 = tbl2.CircleRadius
+			n3 = position + vector(n4, 0, math.sin(os.clock() * circleOrbitSpeed2) * circleRadius2)
+		else
+			n3 = position
+		end
+
+		local n4 = n3 + Vector3.new(arg5 or 0, arg4, arg6 or 0)
+
+		if tbl2.SkillRedirectTweenAim then
+			local n5 = position - n4
+
+			if n5.Magnitude > 0.5 then
+				if math.abs(n5.X) + math.abs(n5.Z) < 0.02 * math.max(n5.Magnitude, 1) then
+					position += Vector3.new(0.02, 0, 0.02)
+				end
+
+				arg.CFrame = CFrame.lookAt(n4, position)
+				return
+			end
+		end
+
+		arg.CFrame = CFrame.new(n4)
+	end
+
+	fn9 = function(arg)
+		if not victimHubRuntime2.S.TwRunning then
+			return
+		end
+		victimHubRuntime2.S.TwPausedUntil = os.clock() + (arg or 0.5)
+
+		if victimHubRuntime2.S.ActiveTween then
+			victimHubRuntime2.S.ActiveTween:Cancel()
+			victimHubRuntime2.S.ActiveTween = nil
+		end
+
+		local character = localPlayer.Character
+		character = character and character:FindFirstChild("HumanoidRootPart")
+
+		if character then
+			pcall(fn34, character)
+		end
+	end
+
+	local tbl5 = {}
+
+	local function fn39(arg, arg2)
+		local v10 = tbl5[arg]
+
+		if v10 then
+			pcall(function()
+				v10:SetValue(arg2)
+			end)
+		end
+	end
+
+	local function fn40()
+		fn31()
+		victimHubRuntime2.S.TwGen = victimHubRuntime2.S.TwGen + 1
+		victimHubRuntime2.S.TwRunning = true
+		local twGen = victimHubRuntime2.S.TwGen
+		victimHubRuntime2.S.TweenPlatform = Instance.new("Part")
+		victimHubRuntime2.S.TweenPlatform.Name = "TweenPlatform"
+		victimHubRuntime2.S.TweenPlatform.Size = Vector3.new(10, 1, 10)
+		victimHubRuntime2.S.TweenPlatform.Transparency = 1
+		victimHubRuntime2.S.TweenPlatform.Anchored = true
+		victimHubRuntime2.S.TweenPlatform.CanCollide = true
+		victimHubRuntime2.S.TweenPlatform.Parent = v2
+		victimHubRuntime2:TrackInstance(victimHubRuntime2.S.TweenPlatform)
+
+		task.spawn(function()
+			while victimHubRuntime2.Alive and task.wait() and victimHubRuntime2.S.TwRunning and victimHubRuntime2.S.TwGen == twGen do
+				if not (tbl2.TweenToPlayer or tbl2.TweenToNearest or tbl2.TweenToPortal) then
+					fn31()
+				else
+					local character = localPlayer.Character
+					character = character and character:FindFirstChild("HumanoidRootPart")
+
+					if character then
+						pcall(fn36, character)
+						local twPausedUntil = victimHubRuntime2.S.TwPausedUntil
+
+						if os.clock() < twPausedUntil then
+							pcall(fn37, character)
+						else
+							local currentTwMode
+
+							if tbl2.TweenToPortal then
+								currentTwMode = "portal"
+							elseif tbl2.TweenToPlayer then
+								currentTwMode = "player"
+							else
+								currentTwMode = nil
+
+								if tbl2.TweenToNearest then
+									currentTwMode = "nearest"
+								end
+							end
+
+							if currentTwMode ~= victimHubRuntime2.S.CurrentTwMode then
+								victimHubRuntime2.S.CurrentTwMode = currentTwMode
+
+								if victimHubRuntime2.S.ActiveTween then
+									victimHubRuntime2.S.ActiveTween:Cancel()
+									victimHubRuntime2.S.ActiveTween = nil
+								end
+							end
+
+							if currentTwMode then
+								local yOffset = tbl2.YOffset
+								local circleTarget = tbl2.CircleTarget
+								local teleportOffsetX = tbl2.TeleportOffsetX or 0
+								local teleportOffsetZ = tbl2.TeleportOffsetZ or 0
+								local adornee, v10
+
+								if currentTwMode == "portal" then
+									local huge = math.huge
+									adornee = nil
+
+									for _, object in pairs(victimHubRuntime2.PortalESP.Objects) do
+										if object.adornee and object.adornee.Parent then
+											local magnitude = (object.adornee.Position - character.Position).Magnitude
+
+											if magnitude < huge and magnitude <= tbl2.TweenMaxRange then
+												adornee = object.adornee
+												huge = magnitude
+											end
+										end
+									end
+
+									v10 = nil
+									yOffset = 0
+									circleTarget = false
+									teleportOffsetX = 0
+									teleportOffsetZ = 0
+								elseif currentTwMode == "player" then
+									local v11 = fn6()
+									local character2 = v11 and v11.Character
+									adornee = nil
+									v10 = nil
+
+									if character2 then
+										adornee = v11.Character:FindFirstChild("HumanoidRootPart")
+										v10 = v11
+									end
+								else
+									local huge = math.huge
+									adornee = nil
+									v10 = nil
+
+									for _, player in ipairs(Players:GetPlayers()) do
+										if player ~= localPlayer and not tbl3[player] and fn12(player) and player.Character then
+											local humanoidRootPart = player.Character:FindFirstChild("HumanoidRootPart")
+											local humanoid = player.Character:FindFirstChild("Humanoid")
+
+											if humanoidRootPart and humanoid and humanoid.Health > 0 then
+												local magnitude = (humanoidRootPart.Position - character.Position).Magnitude
+
+												if magnitude < huge and magnitude <= tbl2.TweenMaxRange then
+													huge = magnitude
+													adornee = humanoidRootPart
+													v10 = player
+												end
+											end
+										end
+									end
+								end
+
+								if not (not adornee or not adornee.Parent) then
+									victimHubRuntime2.S.CurrentTargetPlayer = v10
+									local magnitude = (character.Position - adornee.Position).Magnitude
+									fn33(adornee)
+
+									if magnitude <= tbl2.InstaSnapDistance and tbl2.MovementMode ~= "Pure Tween" then
+										if victimHubRuntime2.S.ActiveTween then
+											victimHubRuntime2.S.ActiveTween:Cancel()
+											victimHubRuntime2.S.ActiveTween = nil
+										end
+
+										victimHubRuntime2.S.InstaActive = true
+										pcall(fn38, character, adornee, circleTarget, yOffset, teleportOffsetX, teleportOffsetZ)
+									else
+										victimHubRuntime2.S.InstaActive = false
+										local lastTargetPos = adornee.Position + Vector3.new(teleportOffsetX, yOffset, teleportOffsetZ)
+
+										if circleTarget then
+											local vector = Vector3.new
+											local circleOrbitSpeed = tbl2.CircleOrbitSpeed
+											local circleRadius = tbl2.CircleRadius
+											local n3 = math.cos(os.clock() * circleOrbitSpeed) * circleRadius
+											local circleOrbitSpeed2 = tbl2.CircleOrbitSpeed
+											local circleRadius2 = tbl2.CircleRadius
+											lastTargetPos += vector(n3, 0, math.sin(os.clock() * circleOrbitSpeed2) * circleRadius2)
+										end
+
+										if not victimHubRuntime2.S.ActiveTween or victimHubRuntime2.S.ActiveTween.PlaybackState ~= Enum.PlaybackState.Playing or (victimHubRuntime2.S.LastTargetPos - lastTargetPos).Magnitude > tbl2.TweenRecalcThreshold then
+											if victimHubRuntime2.S.ActiveTween then
+												victimHubRuntime2.S.ActiveTween:Cancel()
+											end
+
+											character.AssemblyLinearVelocity = Vector3.zero
+											local cframe = CFrame.new(lastTargetPos)
+
+											if tbl2.SkillRedirectTweenAim then
+												local n3 = adornee.Position - lastTargetPos
+
+												if n3.Magnitude > 0.5 then
+													local position = adornee.Position
+
+													if math.abs(n3.X) + math.abs(n3.Z) < 0.02 * math.max(n3.Magnitude, 1) then
+														position += Vector3.new(0.02, 0, 0.02)
+													end
+
+													cframe = CFrame.lookAt(lastTargetPos, position)
+												end
+											end
+
+											victimHubRuntime2.S.ActiveTween = TweenService:Create(character, TweenInfo.new(math.max(magnitude / tbl2.TweenSpeed, tbl2.TweenMinDuration), Enum.EasingStyle.Linear), { CFrame = cframe })
+											victimHubRuntime2.S.ActiveTween:Play()
+											victimHubRuntime2.S.LastTargetPos = lastTargetPos
+										end
+									end
+
+									pcall(fn37, character)
+								end
+							end
+						end
+					end
+				end
+			end
+		end)
+	end
+
+	victimHubRuntime2.S.StartTween = fn40
+	victimHubRuntime2.S.StopTween = fn31
+
+	fn32 = function()
+		if not tbl2.TweenToPlayer then
+			local currentCamera = v2.CurrentCamera
+			local vector2 = flag2 and Vector2.new(currentCamera.ViewportSize.X / 2, currentCamera.ViewportSize.Y / 2) or UserInputService:GetMouseLocation()
+			local huge = math.huge
+			local v10 = nil
+
+			for _, player in ipairs(Players:GetPlayers()) do
+				if player ~= localPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") and player.Character:FindFirstChild("Humanoid") and player.Character.Humanoid.Health > 0 and not tbl3[player] then
+					local v11, v12 = currentCamera:WorldToViewportPoint((player.Character:FindFirstChild("Head") or player.Character.HumanoidRootPart).Position)
+
+					if v12 then
+						local magnitude = (Vector3.new(v11.X, v11.Y, 0) - Vector3.new(vector2.X, vector2.Y, 0)).Magnitude
+
+						if magnitude < huge then
+							huge = magnitude
+							v10 = player
+						end
+					end
+				end
+			end
+
+			if v10 then
+				name = v10.Name
+
+				if tbl2.TweenToNearest then
+					tbl2.TweenToNearest = false
+					fn39("Nearest", false)
+				end
+
+				tbl2.TweenToPlayer = true
+				fn39("Player", true)
+				fn40()
+			end
+		else
+			tbl2.TweenToPlayer = false
+			fn39("Player", false)
+
+			if not (tbl2.TweenToNearest or tbl2.TweenToPortal) then
+				fn31()
+			end
+		end
+	end
+
+	victimHubRuntime2.SkillRedirect = {
+		Skill = false,
+		M1 = false,
+		Part = nil,
+		Position = nil,
+		SkillOK = true,
+		Circle = nil,
+		Line = nil,
+		RestoreMouseModule = nil,
+	}
+
+	victimHubRuntime2.S.SkillRedirectSkill = "Z"
+
+	local function fn41(arg)
+		local skillRedirectSkills = tbl2.SkillRedirectSkills
+		if not skillRedirectSkills then
+			return true
+		end
+
+		if type(skillRedirectSkills) == "table" then
+			if next(skillRedirectSkills) == nil then
+				return false
+			end
+
+			if skillRedirectSkills[arg] ~= nil then
+				return skillRedirectSkills[arg] == true
+			end
+
+			for _, skillRedirectSkill in pairs(skillRedirectSkills) do
+				if skillRedirectSkill == arg then
+					return true
+				end
+			end
+
+			return false
+		end
+
+		return true
+	end
+
+	local function fn42(arg)
+		if not arg then
+			return false
+		end
+		local humanoid = arg:FindFirstChildOfClass("Humanoid")
+		return humanoid ~= nil and humanoid.Health > 0
+	end
+
+	local function fn43(arg)
+		local main = localPlayer:FindFirstChild("PlayerGui") and localPlayer.PlayerGui:FindFirstChild("Main")
+		local frame = main and main:FindFirstChild("Allies") and main.Allies:FindFirstChild("Container") and main.Allies.Container:FindFirstChild("Allies") and main.Allies.Container.Allies:FindFirstChild("ScrollingFrame") and main.Allies.Container.Allies.ScrollingFrame:FindFirstChild("Frame")
+		if not frame then
+			return false
+		end
+		return frame:FindFirstChild(arg.Name) ~= nil
+	end
+
+	local function fn44(arg)
+		if not arg or arg == localPlayer then
+			return false
+		end
+
+		if fn43(arg) then
+			return false
+		end
+		local team = localPlayer.Team
+		local team2 = arg.Team
+		if team and team2 and team.Name == "Marines" and team2.Name == "Marines" then
+			return false
+		end
+		return true
+	end
+
+	local function fn45()
+		local mouseLocation = UserInputService:GetMouseLocation()
+		if tbl2.SkillRedirectFOVMode == "Screen Center" or mouseLocation.X <= 0 or mouseLocation.Y <= 0 then
+			local viewportSize = v2.CurrentCamera.ViewportSize
+			return Vector2.new(viewportSize.X / 2, viewportSize.Y / 2)
+		end
+		return mouseLocation
+	end
+
+	local function fn46()
+		local skillRedirectMode = tbl2.SkillRedirectMode
+		local skillRedirectPart = tbl2.SkillRedirectPart
+
+		if tbl2.SkillRedirectTweenAim and victimHubRuntime2.S.TwRunning and victimHubRuntime2.S.CurrentTargetPlayer then
+			local currentTargetPlayer = victimHubRuntime2.S.CurrentTargetPlayer
+			local flag5 = currentTargetPlayer ~= localPlayer and currentTargetPlayer.Parent == Players and tbl2.SkillRedirectTargetPlayers and (not tbl2.SkillRedirectTeamCheck or fn44(currentTargetPlayer))
+
+			if flag5 then
+				flag5 = not (tbl2.SkillRedirectExcludePVP and currentTargetPlayer:GetAttribute("PvpDisabled") == true)
+			end
+
+			if flag5 then
+				local character = currentTargetPlayer.Character
+
+				if fn42(character) then
+					local humanoidRootPart = character:FindFirstChild(skillRedirectPart) or character:FindFirstChild("HumanoidRootPart")
+					if humanoidRootPart then
+						return humanoidRootPart
+					end
+				end
+			end
+		end
+
+		if skillRedirectMode == "Selected Player" then
+			if not tbl2.SkillRedirectTargetPlayers then
+				return nil
+			end
+			local skillRedirectSelectedPlayer = tbl2.SkillRedirectSelectedPlayer
+			if not skillRedirectSelectedPlayer or skillRedirectSelectedPlayer == "" then
+				return nil
+			end
+			local v10 = Players:FindFirstChild(skillRedirectSelectedPlayer)
+			if not v10 or v10 == localPlayer then
+				return nil
+			end
+
+			if tbl2.SkillRedirectTeamCheck and not fn44(v10) then
+				return nil
+			end
+
+			if tbl2.SkillRedirectExcludePVP and v10:GetAttribute("PvpDisabled") == true then
+				return nil
+			end
+			local character = v10.Character
+			if not fn42(character) then
+				return nil
+			end
+			return character:FindFirstChild(skillRedirectPart) or character:FindFirstChild("HumanoidRootPart")
+		end
+
+		if skillRedirectMode == "Nearest Player" then
+			local character = localPlayer.Character
+			character = character and character:FindFirstChild("HumanoidRootPart")
+			if not character then
+				return nil
+			end
+			local v10 = nil
+			local huge = math.huge
+			local position = character.Position
+
+			local function fn47(arg)
+				if not fn42(arg) then
+					return
+				end
+				local humanoidRootPart = arg:FindFirstChild(skillRedirectPart) or arg:FindFirstChild("HumanoidRootPart")
+				if not humanoidRootPart then
+					return
+				end
+				local magnitude = (humanoidRootPart.Position - position).Magnitude
+
+				if magnitude < huge then
+					v10 = humanoidRootPart
+					huge = magnitude
+				end
+			end
+
+			if tbl2.SkillRedirectTargetPlayers then
+				for _, player in ipairs(Players:GetPlayers()) do
+					if player ~= localPlayer then
+						local flag5 = not tbl2.SkillRedirectTeamCheck or fn44(player)
+
+						if flag5 then
+							flag5 = not (tbl2.SkillRedirectExcludePVP and player:GetAttribute("PvpDisabled") == true)
+						end
+
+						if flag5 then
+							fn47(player.Character)
+						end
+					end
+				end
+			end
+
+			if tbl2.SkillRedirectTargetMobs and v2:FindFirstChild("Enemies") then
+				for _, child in ipairs(v2.Enemies:GetChildren()) do
+					fn47(child)
+				end
+			end
+
+			return v10
+		end
+
+		local v10 = fn45()
+		local currentCamera = v2.CurrentCamera
+		local v11 = nil
+		local huge = math.huge
+		local skillRedirectFOV = tbl2.SkillRedirectFOV
+
+		local function fn47(arg)
+			if not fn42(arg) then
+				return
+			end
+			local humanoidRootPart = arg:FindFirstChild(skillRedirectPart) or arg:FindFirstChild("HumanoidRootPart")
+			if not humanoidRootPart then
+				return
+			end
+			local v12, v13 = currentCamera:WorldToViewportPoint(humanoidRootPart.Position)
+
+			if v13 then
+				local magnitude = (Vector2.new(v12.X, v12.Y) - v10).Magnitude
+
+				if magnitude <= skillRedirectFOV and magnitude < huge then
+					v11 = humanoidRootPart
+					huge = magnitude
+				end
+			end
+		end
+
+		if tbl2.SkillRedirectTargetPlayers then
+			for _, player in ipairs(Players:GetPlayers()) do
+				if player ~= localPlayer then
+					local flag5 = not tbl2.SkillRedirectTeamCheck or fn44(player)
+					local flag6
+
+					if flag5 then
+						flag6 = not (tbl2.SkillRedirectExcludePVP and player:GetAttribute("PvpDisabled") == true)
+					else
+						flag6 = flag5
+					end
+
+					if flag6 then
+						fn47(player.Character)
+					end
+				end
+			end
+		end
+
+		if tbl2.SkillRedirectTargetMobs and v2:FindFirstChild("Enemies") then
+			for _, child in ipairs(v2.Enemies:GetChildren()) do
+				fn47(child)
+			end
+		end
+
+		return v11
+	end
+
+	local circle = nil
+	local line = nil
+
+	pcall(function()
+		circle = Drawing.new("Circle")
+		circle.Visible = false
+		circle.Color = Color3.new(tbl2.SkillRedirectColorR, tbl2.SkillRedirectColorG, tbl2.SkillRedirectColorB)
+		circle.Radius = 150
+		circle.Thickness = 2
+		circle.Filled = false
+		line = Drawing.new("Line")
+		line.Thickness = 2
+		line.Color = Color3.new(tbl2.SkillRedirectColorR, tbl2.SkillRedirectColorG, tbl2.SkillRedirectColorB)
+		line.Transparency = 1
+		line.Visible = false
+	end)
+
+	victimHubRuntime2.SkillRedirect.Circle = circle
+	victimHubRuntime2.SkillRedirect.Line = line
+
+	if tbl2.SkillRedirectShowFOV and circle then
+		circle.Visible = true
+		circle.Radius = tbl2.SkillRedirectFOV
+	end
+
+	if circle then
+		victimHubRuntime2:TrackConnection(RunService.RenderStepped:Connect(function()
+			if not circle.Visible then
+				return
+			end
+			circle.Position = fn45()
+		end))
+	end
+
+	victimHubRuntime2.SkillRedirect.RestoreMouseModule = function()
+		local victimHubSkillAimMouseModule = genv.__VictimHubSkillAimMouseModule
+		if not victimHubSkillAimMouseModule then
+			return
+		end
+		genv.__VictimHubSkillAimMouseModule = nil
+
+		pcall(function()
+			local v10 = getrawmetatable(victimHubSkillAimMouseModule.Module)
+
+			if v10 then
+				setreadonly(v10, false)
+			end
+
+			rawset(victimHubSkillAimMouseModule.Module, "Hit", victimHubSkillAimMouseModule.Real.Hit)
+			rawset(victimHubSkillAimMouseModule.Module, "Target", victimHubSkillAimMouseModule.Real.Target)
+
+			if v10 then
+				v10.__index = victimHubSkillAimMouseModule.OldIndex
+				v10.__newindex = victimHubSkillAimMouseModule.OldNewIndex
+				setreadonly(v10, victimHubSkillAimMouseModule.WasReadonly == true)
+			end
+		end)
+	end
+
+	if not genv.__VictimHubSkillAimMouseModule then
+		local victimHubSkillAimMouseModule = { Real = nil, Module = nil, OldIndex = nil, OldNewIndex = nil, WasReadonly = false }
+
+		local function fn47()
+			if pcall(function()
+				local mouse = ReplicatedStorage:FindFirstChild("Mouse")
+
+				if not mouse then
+					error("mouse module not present")
+				end
+
+				local module2 = require(mouse)
+
+				if typeof(module2) ~= "table" then
+					error("mouse module is not a table")
+				end
+
+				victimHubSkillAimMouseModule.Real = { Hit = rawget(module2, "Hit"), Target = rawget(module2, "Target") }
+				local tbl6 = getrawmetatable(module2)
+
+				if tbl6 then
+					victimHubSkillAimMouseModule.OldIndex = tbl6.__index
+					victimHubSkillAimMouseModule.OldNewIndex = tbl6.__newindex
+
+					pcall(function()
+						if isreadonly then
+							victimHubSkillAimMouseModule.WasReadonly = isreadonly(tbl6)
+						end
+					end)
+
+					setreadonly(tbl6, false)
+				else
+					tbl6 = {}
+					setmetatable(module2, tbl6)
+				end
+
+				rawset(module2, "Hit", nil)
+				rawset(module2, "Target", nil)
+
+				tbl6.__index = function(arg, arg2)
+					local victimHubRuntime3 = genv.__VictimHubRuntime
+					victimHubRuntime3 = victimHubRuntime3 and victimHubRuntime3.SkillRedirect
+
+					if arg2 == "Hit" then
+						if victimHubRuntime3 and victimHubRuntime3.Skill and victimHubRuntime3.SkillOK and victimHubRuntime3.Part then
+							return CFrame.new(victimHubRuntime3.Position or victimHubRuntime3.Part.Position)
+						end
+						return victimHubSkillAimMouseModule.Real.Hit
+					end
+
+					if arg2 == "Target" then
+						if victimHubRuntime3 and victimHubRuntime3.Skill and victimHubRuntime3.SkillOK and victimHubRuntime3.Part then
+							return victimHubRuntime3.Part
+						end
+						return victimHubSkillAimMouseModule.Real.Target
+					end
+
+					local oldIndex = victimHubSkillAimMouseModule.OldIndex
+					if oldIndex then
+						return oldIndex(arg, arg2)
+					end
+					return rawget(arg, arg2)
+				end
+
+				tbl6.__newindex = function(arg, arg2, arg3)
+					if arg2 == "Hit" or arg2 == "Target" then
+						victimHubSkillAimMouseModule.Real[arg2] = arg3
+					else
+						rawset(arg, arg2, arg3)
+					end
+				end
+
+				setreadonly(tbl6, true)
+				victimHubSkillAimMouseModule.Module = module2
+			end) and victimHubSkillAimMouseModule.Module then
+				genv.__VictimHubSkillAimMouseModule = victimHubSkillAimMouseModule
+				return true
+			end
+
+			return false
+		end
+
+		if not fn47() then
+			task.spawn(function()
+				for i = 1, 15 do
+					if not victimHubRuntime2.Alive then
+						return
+					end
+					task.wait(2)
+					if genv.__VictimHubSkillAimMouseModule then
+						return
+					end
+
+					if fn47() then
+						return
+					end
+				end
+			end)
+		end
+	end
+
+	if not genv.__VictimHubNamecallDispatcher then
+		local v10 = getrawmetatable(game)
+		local victimHubNamecallDispatcher = { Original = v10.__namecall }
+		setreadonly(v10, false)
+
+		local v11 = newcclosure(function(...)
+			local v11 = table.pack(...)
+			local victimHubRuntime3 = genv.__VictimHubRuntime
+			local skillRedirect = victimHubRuntime3 and victimHubRuntime3.SkillRedirect
+			if not victimHubRuntime3 or not victimHubRuntime3.Alive then
+				return victimHubNamecallDispatcher.Original(...)
+			end
+			local v12 = getnamecallmethod()
+			if not skillRedirect or not skillRedirect.Skill or not skillRedirect.SkillOK or not skillRedirect.Position then
+				return victimHubNamecallDispatcher.Original(...)
+			end
+
+			if v12 == "FireServer" or v12 == "InvokeServer" then
+				local v13 = ...
+				local str = tostring(v13)
+
+				if str == "RemoteEvent" or str == "CommE" or str == "RemoteFunction" then
+					local value = select("#", table.unpack(v11, 1, v11.n))
+					local tbl6 = { table.unpack(v11, 1, v11.n) }
+					local flag5 = false
+
+					for i = 1, value do
+						if typeof(tbl6[i]) == "Vector3" then
+							tbl6[i] = skillRedirect.Position
+							flag5 = true
+						end
+					end
+
+					if flag5 then
+						return victimHubNamecallDispatcher.Original(unpack(tbl6, 1, value))
+					end
+				end
+
+				return victimHubNamecallDispatcher.Original(table.unpack(v11, 1, v11.n))
+			end
+
+			return victimHubNamecallDispatcher.Original(...)
+		end)
+
+		v10.__namecall = v11
+		victimHubNamecallDispatcher.Hook = v11
+		setreadonly(v10, true)
+		genv.__VictimHubNamecallDispatcher = victimHubNamecallDispatcher
+	end
+
+	if not genv.__VictimHubSkillAimMouseIndex then
+		pcall(function()
+			local mouse = localPlayer:GetMouse()
+			local v10 = checkcaller
+			local result = nil
+			local flag5 = false
+
+			if getrawmetatable then
+				flag5, result = pcall(getrawmetatable, game)
+			end
+
+			local index = nil
+
+			if flag5 and result ~= nil then
+				index = result.__index
+			end
+
+			local function fn47()
+				local textLabel = Instance.new("TextLabel")
+
+				local ok, result2 = pcall(function()
+					return textLabel.TextTransparency
+				end)
+
+				textLabel:Destroy()
+				return ok and type(result2) == "number"
+			end
+
+			local tbl6 = {}
+			tbl6.old = type(index) == "function" and index or nil
+			local v11 = nil
+
+			if loadstring then
+				pcall(function()
+					local chunk = loadstring([[local HubEnv, player, mouse, cc, chain, CFrame, Ray, WS, pcall = ...
+-- Aim from the CHARACTER, not the camera (RJR built the ray from the
+-- camera, which is only correct while the camera sits on the character;
+-- during a tween / insta-TP it trails far behind and a camera-relative
+-- direction sprays wide by exactly the lag). Falls back to the camera
+-- while the character is missing (dead / respawning).
+local function hook(self, key)
+    local rt = HubEnv.__VictimHubRuntime
+    local SR = rt and rt.SkillRedirect
+    if SR and SR.M1 and SR.SkillOK and SR.Part and not (cc and cc()) and self == mouse then
+        local ok, result = pcall(function()
+            local tp = SR.Position or SR.Part.Position
+            local myChar = player.Character
+            local myRoot = myChar and myChar:FindFirstChild('HumanoidRootPart')
+            local op = myRoot and myRoot.Position or WS.CurrentCamera.CFrame.Position
+            if key == 'Hit' then return CFrame.new(tp)
+            elseif key == 'Target' then return SR.Part
+            elseif key == 'UnitRay' then return Ray.new(op, (tp - op).Unit)
+            elseif key == 'Origin' then return op
+            elseif key == 'Direction' then return (tp - op).Unit
+            end
+            return nil
+        end)
+        if ok and result ~= nil then return result end
+        -- pcall failed or the key is not one of the five redirected
+        -- keys: fall through so the read resolves via the original.
+    end
+    local old = chain.old
+    if old then return old(self, key) end
+    return nil
+end
+return hook
+]])
+
+					if type(chunk) == "function" then
+						v11 = chunk(genv, localPlayer, mouse, v10, tbl6, CFrame, Ray, v2, pcall)
+					end
+				end)
+
+				if type(v11) ~= "function" then
+					v11 = nil
+				end
+			end
+
+			local flag6 = false
+
+			if v11 then
+				if hookmetamethod then
+					pcall(function()
+						local v12 = hookmetamethod(game, "__index", v11)
+
+						if type(v12) == "function" then
+							tbl6.old = v12
+							flag6 = true
+						end
+					end)
+
+					if flag6 and not fn47() then
+						flag6 = false
+						tbl6.old = index
+
+						pcall(function()
+							local v12 = getrawmetatable and getrawmetatable(game) or nil
+
+							if v12 and index ~= nil then
+								setreadonly(v12, false)
+								v12.__index = index
+								setreadonly(v12, true)
+							end
+						end)
+					elseif not flag6 then
+						if flag5 and result and index ~= nil then
+							pcall(function()
+								if result.__index ~= index then
+									setreadonly(result, false)
+									result.__index = index
+									setreadonly(result, true)
+								end
+							end)
+						end
+					end
+				end
+
+				if not flag6 and flag5 and result and result.__index == index and type(index) == "function" then
+					pcall(function()
+						setreadonly(result, false)
+						tbl6.old = index
+						result.__index = v11
+						setreadonly(result, true)
+						flag6 = true
+					end)
+				end
+
+				if flag6 and not fn47() then
+					flag6 = false
+					tbl6.old = index
+
+					pcall(function()
+						local v12 = getrawmetatable and getrawmetatable(game) or nil
+
+						if v12 and index ~= nil then
+							setreadonly(v12, false)
+							v12.__index = index
+							setreadonly(v12, true)
+						end
+					end)
+				end
+
+				if flag6 then
+					genv.__VictimHubSkillAimMouseIndex = tbl6.old
+				end
+			end
+		end)
+	end
+
+	victimHubRuntime2:TrackConnection(RunService.RenderStepped:Connect(function()
+		local skillRedirect = victimHubRuntime2.SkillRedirect
+		skillRedirect.Skill = tbl2.SkillRedirectSkill == true
+		skillRedirect.M1 = tbl2.SkillRedirectM1 == true
+		skillRedirect.SkillOK = fn41(victimHubRuntime2.S.SkillRedirectSkill or "Z")
+
+		if skillRedirect.Skill or skillRedirect.M1 then
+			skillRedirect.Part = fn46()
+		else
+			skillRedirect.Part = nil
+		end
+
+		if skillRedirect.Part then
+			local position = skillRedirect.Part.Position
+
+			if tbl2.SkillRedirectTweenAim and victimHubRuntime2.S.TwRunning then
+				local v10 = victimHubRuntime2.S.PlayerPositionHistory[skillRedirect.Part.Parent.Name]
+
+				if v10 then
+					position = fn10(skillRedirect.Part, v10, tbl2.NoPredict) or position
+				end
+			end
+
+			skillRedirect.Position = position
+		else
+			skillRedirect.Position = nil
+		end
+
+		if line then
+			if tbl2.SkillRedirectShowLine and skillRedirect.Part then
+				local v10, v11 = v2.CurrentCamera:WorldToViewportPoint(skillRedirect.Part.Position)
+
+				if v11 then
+					line.Visible = true
+					line.From = fn45()
+					line.To = Vector2.new(v10.X, v10.Y)
+				else
+					line.Visible = false
+				end
+			else
+				line.Visible = false
+			end
+		end
+	end))
+
+	flag4 = false
+	n = 0
+	n2 = 0
+
+	local tbl6 = {
+		Germany = true,
+		Netherlands = true,
+		["United States"] = false,
+		Brazil = false,
+		Singapore = false,
+		Poland = false,
+	}
+
+	local tbl7 = { "Germany", "Netherlands", "United States", "Brazil", "Singapore", "Poland" }
+	local tbl8 = {}
+	local tbl9 = {}
+
+	local function fn47()
+		local tbl10 = {}
+
+		for _, v10 in ipairs(tbl7) do
+			if tbl6[v10] then
+				table.insert(tbl10, v10)
+			end
+		end
+
+		return tbl10
+	end
+
+	local function fn48(arg)
+		local match, v10 = tostring(math.floor(tonumber(arg) or 0)):match("^(%-?)(%d+)$")
+		return match .. v10:reverse():gsub("(%d%d%d)", "%1,"):reverse():gsub("^,", "")
+	end
+
+	local function fn49(arg)
+		local n3 = tonumber(arg) or 0
+		if n3 >= 1e9 then
+			return ("%.1fB"):format(n3 / 1e9)
+		end
+
+		if n3 >= 1000000 then
+			return ("%.1fM"):format(n3 / 1000000)
+		end
+
+		if n3 >= 1000 then
+			return ("%.1fK"):format(n3 / 1000)
+		end
+		return tostring(n3)
+	end
+
+	local function fn50(arg, arg2)
+		local str = tostring(arg or ""):lower()
+
+		for _, v10 in ipairs(arg2) do
+			if str:find(v10:lower(), 1, true) then
+				return true
+			end
+		end
+
+		return false
+	end
+
+	local function fn51(arg)
+		local serverBrowser = ReplicatedStorage:WaitForChild("__ServerBrowser")
+		local tbl10 = {}
+		local n3 = 0
+		local bountyMaxPages = tbl2.BountyMaxPages
+
+		for i = 1, bountyMaxPages do
+			task.spawn(function()
+				local ok, result = pcall(function()
+					return serverBrowser:InvokeServer(i)
+				end)
+
+				if ok and type(result) == "table" then
+					for k, v10 in pairs(result) do
+						if (tonumber(v10.Bounty) or 0) >= arg and k ~= game.JobId then
+							v10.Job = k
+							table.insert(tbl10, v10)
+						end
+					end
+				end
+
+				n3 += 1
+			end)
+		end
+
+		local n4 = 0
+
+		while true do
+			task.wait(0.1)
+			n4 += 0.1
+			if not (n3 >= bountyMaxPages or n4 >= tbl2.BountyScanTimeout) then
+				continue
+			end
+			break
+		end
+
+		table.sort(tbl10, function(arg2, arg3)
+			return (tonumber(arg2.Bounty) or 0) > (tonumber(arg3.Bounty) or 0)
+		end)
+
+		return tbl10
+	end
+
+	local function fn52(arg)
+		local v10 = fn51(tbl2.BountyMinBounty)
+
+		for _, v11 in ipairs(v10) do
+			v11.Preferred = fn50(v11.Region, arg)
+		end
+
+		table.sort(v10, function(arg2, arg3)
+			if arg2.Preferred ~= arg3.Preferred then
+				return arg2.Preferred
+			end
+			return (tonumber(arg2.Bounty) or 0) > (tonumber(arg3.Bounty) or 0)
+		end)
+
+		return v10
+	end
+
+	local function fn53(arg)
+		local serverBrowser = ReplicatedStorage:WaitForChild("__ServerBrowser")
+
+		pcall(function()
+			serverBrowser:InvokeServer("teleport", arg)
+		end)
+
+		task.wait(tbl2.BountyTeleportRetryWait)
+
+		pcall(function()
+			serverBrowser:InvokeServer("teleport", arg)
+		end)
+
+		task.wait(tbl2.BountyPostTeleportWait)
+	end
+
+	local function fn54()
+		local v10 = fn47()
+		if #v10 == 0 then
+			warn("[BountyHop] No regions selected!")
+			return
+		end
+		n += 1
+		flag4 = true
+		local v11 = n
+		local concat = table.concat
+		print(("[BountyHop] Scanning for bounty >= %s (regions: %s)"):format(fn48(tbl2.BountyMinBounty), concat(v10, ", ")))
+		local v12 = fn52(v10)
+		if n ~= v11 then
+			return
+		end
+		print(("[BountyHop] Found %d candidate servers."):format(#v12))
+
+		if #v12 == 0 then
+			warn("[BountyHop] No servers matched.")
+			flag4 = false
+			return
+		end
+
+		for i, v13 in ipairs(v12) do
+			if not (i > tbl2.BountyMaxJoinAttempts) then
+				print(("[BountyHop]   %d. %s | %s | Players: %s | Bounty: %s%s"):format(i, tostring(v13.Job), tostring(v13.Region), tostring(v13.Count), fn48(v13.Bounty), v13.Preferred and "  [preferred]" or ""))
+				continue
+			end
+			break
+		end
+
+		for i, v13 in ipairs(v12) do
+			if not (not flag4 or n ~= v11) then
+				print(("[BountyHop] [%d/%d] Joining %s (%s, bounty %s)%s"):format(i, #v12, tostring(v13.Job), tostring(v13.Region), fn48(v13.Bounty), v13.Preferred and "  [preferred]" or ""))
+				fn53(v13.Job)
+				if not (not flag4 or n ~= v11) then
+					warn(("[BountyHop] Still here - %s didn't work, trying next..."):format(tostring(v13.Job)))
+					continue
+				end
+			end
+
+			break
+		end
+
+		if flag4 and n == v11 then
+			warn("[BountyHop] Exhausted all candidate servers.")
+		end
+
+		flag4 = false
+	end
+
+	local function fn55(arg)
+		if fn9 then
+			fn9(0.5)
+		end
+
+		pcall(function()
+			v5:InvokeServer("requestEntrance", arg)
+		end)
+	end
+
+	local job = nil
+	local viewportSize = v2.CurrentCamera.ViewportSize
+	local n3
+
+	if flag2 then
+		n3 = viewportSize.X < 700 and 0.8 or 1
+	else
+		n3 = flag2
+	end
+
+	local n4 = n3 or 1
+	local n5 = math.min((viewportSize.X - 12) / 460, (viewportSize.Y - 12) / 500)
+
+	if n5 < n4 then
+		n4 = math.max(0.5, n5)
+	end
+
+	local floor = math.floor
+fn11()
+
+if flag2 then
+	if victimHubRuntime2.FlyPanel and tbl2.Fly then
+		fn19()
+	end
+elseif tbl2.Fly then
+	fn19()
+end
+if tbl2.AutoHaki then
+	tbl4.Haki.Start()
+end
+
+if tbl2.AutoKen then
+	tbl4.Ken.Start()
+end
+
+if tbl2.AutoPvP then
+	tbl4.PvP.Start()
+end
+
+if tbl2.AutoV4 then
+	tbl4.V4.Start()
+end
+
+if tbl2.AutoV3 then
+	tbl4.V3.Start()
+end
+
+if tbl2.PanicFlee then
+	fn27()
+end
+if tbl2.FruitM1 then
+	tbl4.Fruit.Start()
+end
+if tbl2.ESP then
+	fn29()
+end
+
+local cleanup = victimHubRuntime2.Cleanup
+
+victimHubRuntime2.Cleanup = function(arg)
+	tbl.Alive = false
+
+	if cleanup then
+		pcall(cleanup, arg)
+	end
+end
+
+
+    -- ============================================================
+    -- REORGANIZED FEATURE CONTROLS (GOON HUB GUI)
+    -- ============================================================
+    local VH = {
+        Settings = tbl2,
+        Modules = tbl4,
+        Runtime = victimHubRuntime2,
+    }
+
+    local function vhSet(name, enabled, module)
+        tbl2[name] = enabled
+        if module then
+            local method = enabled and module.Start or module.Stop
+            if method then pcall(method) end
+        end
+    end
+
+    local function stopTweenIfUnused()
+        if not tbl2.TweenToPlayer and not tbl2.TweenToPortal and not tbl2.TweenToNearest then
+            if victimHubRuntime2.S.StopTween then
+                pcall(victimHubRuntime2.S.StopTween)
+            end
+        end
+    end
+
+    -- PLAYER: movement, player selection, and player travel only.
+    createLabel(homeScroll, "[ Player ]")
+    local orbitActive = false
+    local aboveActive = false
+    local originalCircleTarget = tbl2.CircleTarget
+    local originalCircleRadius = tbl2.CircleRadius
+    local originalYOffset = tbl2.YOffset
+    local function startSelectedPlayerTween()
+        if selectedTarget and selectedTarget.Parent == Players then
+            name = selectedTarget.Name
+            tbl2.TweenToPortal = false
+            tbl2.TweenToPlayer = true
+            if victimHubRuntime2.S.StartTween then pcall(victimHubRuntime2.S.StartTween) end
+            return true
+        end
+        return false
+    end
+    createToggle(homeScroll, "tween to player", tbl2.TweenToPlayer, function(v)
+        if v and not startSelectedPlayerTween() then
+            tbl2.TweenToPlayer = false
+        elseif not v then
+            tbl2.TweenToPlayer = false
+            stopTweenIfUnused()
+        end
+    end)
+    createToggle(homeScroll, "orbit", false, function(v)
+        orbitActive = v
+        if v then
+            aboveActive = false
+            tbl2.CircleTarget = true
+            tbl2.CircleRadius = 8
+            startSelectedPlayerTween()
+        else
+            tbl2.CircleTarget = originalCircleTarget
+            tbl2.CircleRadius = originalCircleRadius
+            if not aboveActive then
+                tbl2.TweenToPlayer = false
+                stopTweenIfUnused()
+            end
+        end
+    end)
+    createToggle(homeScroll, "above", false, function(v)
+        aboveActive = v
+        if v then
+            orbitActive = false
+            tbl2.CircleTarget = false
+            tbl2.YOffset = 6
+            startSelectedPlayerTween()
+        else
+            tbl2.YOffset = originalYOffset
+            if not orbitActive then
+                tbl2.TweenToPlayer = false
+                stopTweenIfUnused()
+            end
+        end
+    end)
+    createToggle(homeScroll, "infinite jump", tbl2.InfiniteJump, function(v)
+        tbl2.InfiniteJump = v
+    end)
+    createToggle(homeScroll, "fly", tbl2.Fly, function(v)
+        tbl2.Fly = v
+        if v then pcall(fn19) else pcall(fn18) end
+    end)
+    createToggle(homeScroll, "tween to portal", tbl2.TweenToPortal, function(v)
+        tbl2.TweenToPortal = v
+        if v then
+            tbl2.TweenToPlayer = false
+            tbl2.PortalESP = true
+            if victimHubRuntime2.S.StartTween then pcall(victimHubRuntime2.S.StartTween) end
+            if fn29 then pcall(fn29) end
+        else
+            stopTweenIfUnused()
+        end
+    end)
+    createToggle(homeScroll, "walk on water", tbl2.WalkOnWater, function(v)
+        tbl2.WalkOnWater = v
+        pcall(fn24, v)
+    end)
+
+    -- ESP: every ESP setting is kept together here.
+    createLabel(espScroll, "[ ESP ]")
+    createToggle(espScroll, "ESP players + portals", tbl2.ESP, function(v)
+        tbl2.ESP = v
+        tbl2.PortalESP = v
+        if v and fn29 then pcall(fn29) end
+    end)
+    createToggle(espScroll, "ESP highlight", tbl2.ESPHighlight, function(v)
+        tbl2.ESPHighlight = v
+    end)
+    createToggle(espScroll, "show level", tbl2.ESPShowLevel, function(v)
+        tbl2.ESPShowLevel = v
+    end)
+    createToggle(espScroll, "show bounty", tbl2.ESPShowBounty, function(v)
+        tbl2.ESPShowBounty = v
+    end)
+    createToggle(espScroll, "show fruit", tbl2.ESPShowFruit, function(v)
+        tbl2.ESPShowFruit = v
+    end)
+    createToggle(espScroll, "show PvP", tbl2.ESPShowPvP, function(v)
+        tbl2.ESPShowPvP = v
+    end)
+    createSlider(espScroll, "ESP distance", 100, 200000, tbl2.ESPMaxDistance or 200000, function(v)
+        tbl2.ESPMaxDistance = v
+        tbl2.PortalESPMaxDistance = v
+    end)
+
+    -- GENERAL: farming and automation-related features only.
+    createLabel(otherLeftScroll, "[ General farming ]")
+    local farmNearestEnabled = false
+    local farmNearestThread = nil
+    local function getNearestFarmMob(root)
+        local nearest, distance = nil, math.huge
+        local enemies = workspace:FindFirstChild("Enemies")
+        local containers = { enemies, workspace }
+        for _, container in ipairs(containers) do
+            if container then
+                for _, mob in ipairs(container:GetChildren()) do
+                    if mob:IsA("Model") and mob ~= localPlayer.Character and not Players:GetPlayerFromCharacter(mob) then
+                        local humanoid = mob:FindFirstChildOfClass("Humanoid")
+                        local mobRoot = mob:FindFirstChild("HumanoidRootPart") or mob.PrimaryPart
+                        if humanoid and humanoid.Health > 0 and mobRoot then
+                            local currentDistance = (root.Position - mobRoot.Position).Magnitude
+                            if currentDistance < distance then
+                                nearest, distance = mob, currentDistance
+                            end
+                        end
+                    end
+                end
+            end
+        end
+        return nearest
+    end
+    local function stopFarmNearest()
+        farmNearestEnabled = false
+        if farmNearestThread then task.cancel(farmNearestThread); farmNearestThread = nil end
+    end
+    local function startFarmNearest()
+        stopFarmNearest()
+        farmNearestEnabled = true
+        farmNearestThread = task.spawn(function()
+            while farmNearestEnabled and victimHubRuntime2.Alive do
+                pcall(function()
+                    local character = localPlayer.Character
+                    local root = character and character:FindFirstChild("HumanoidRootPart")
+                    local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+                    if not root or not humanoid or humanoid.Health <= 0 then return end
+                    local mob = getNearestFarmMob(root)
+                    local mobRoot = mob and (mob:FindFirstChild("HumanoidRootPart") or mob.PrimaryPart)
+                    if not mobRoot then return end
+                    root.CFrame = mobRoot.CFrame * CFrame.new(0, 0, -4)
+                    local tool = character:FindFirstChildOfClass("Tool") or localPlayer.Backpack:FindFirstChildOfClass("Tool")
+                    if tool and tool.Parent ~= character then humanoid:EquipTool(tool) end
+                    if tool then pcall(function() tool:Activate() end) end
+                    if v3 and v4 then
+                        pcall(function() v3:FireServer(0) end)
+                        pcall(function() v4:FireServer(mobRoot, {{ mob, mobRoot }}) end)
+                    end
+                end)
+                task.wait(0.08)
+            end
+        end)
+    end
+    createToggle(otherLeftScroll, "farm nearest", false, function(v)
+        if v then startFarmNearest() else stopFarmNearest() end
+    end)
+    createToggle(otherLeftScroll, "auto haki", tbl2.AutoHaki, function(v)
+        vhSet("AutoHaki", v, tbl4.Haki)
+    end)
+    createToggle(otherLeftScroll, "auto ken", tbl2.AutoKen, function(v)
+        vhSet("AutoKen", v, tbl4.Ken)
+    end)
+    createToggle(otherLeftScroll, "auto PvP", tbl2.AutoPvP, function(v)
+        vhSet("AutoPvP", v, tbl4.PvP)
+    end)
+    createToggle(otherLeftScroll, "auto V4", tbl2.AutoV4, function(v)
+        vhSet("AutoV4", v, tbl4.V4)
+    end)
+    createToggle(otherLeftScroll, "auto V3", tbl2.AutoV3, function(v)
+        vhSet("AutoV3", v, tbl4.V3)
+    end)
+    createToggle(otherLeftScroll, "mob bring", tbl2.PermanentMobBring, function(v)
+        tbl2.PermanentMobBring = v
+        if victimHubRuntime2.MobBring then
+            if v then pcall(victimHubRuntime2.MobBring.Start, victimHubRuntime2.MobBring)
+            else pcall(victimHubRuntime2.MobBring.Stop, victimHubRuntime2.MobBring) end
+        end
+    end)
+    createToggle(otherLeftScroll, "panic flee", tbl2.PanicFlee, function(v)
+        tbl2.PanicFlee = v
+        if v and fn27 then pcall(fn27) elseif not v and fn26 then pcall(fn26) end
+    end)
+
+    -- FUN: Dragon Storm variants and other non-targeting utility features.
+    createLabel(bfLeftScroll, "[ Fun ]")
+    createLabel(bfLeftScroll, "[ Dragon Storm ]")
+    local dragonStormV1 = {
+        Enabled = tbl2.DragonstormAuraV1 == true,
+        Start = function()
+            tbl2.DragonstormAuraV1 = true
+        end,
+        Stop = function()
+            tbl2.DragonstormAuraV1 = false
+        end,
+    }
+    local dragonStormV2 = {
+        Enabled = tbl2.DragonstormAuraV2 == true,
+        Start = function()
+            tbl2.DragonstormAuraV2 = true
+        end,
+        Stop = function()
+            tbl2.DragonstormAuraV2 = false
+        end,
+    }
+    victimHubRuntime2.DragonStorm = {
+        V1 = dragonStormV1,
+        V2 = dragonStormV2,
+    }
+    createToggle(bfLeftScroll, "DS Aura V1", dragonStormV1.Enabled, function(v)
+        if v then dragonStormV1.Start() else dragonStormV1.Stop() end
+    end)
+    createToggle(bfLeftScroll, "DS Aura V2", dragonStormV2.Enabled, function(v)
+        if v then dragonStormV2.Start() else dragonStormV2.Stop() end
+    end)
+    createSlider(bfLeftScroll, "Dragon Storm Range", 100, 1000, tbl2.DragonstormRange or 500, function(v)
+        tbl2.DragonstormRange = v
+    end, 100)
+    -- FAST ATTACK: integrated from the provided replacement M1 code.
+    -- It uses the existing Fun-panel control instead of creating a second GUI.
+    local FastAttackEnabled = false
+    local FastAttackRange = 100
+    local FastAttackConnection = nil
+    local fastAttackModules = ReplicatedStorage:FindFirstChild("Modules")
+    local fastAttackNet = fastAttackModules and fastAttackModules:FindFirstChild("Net")
+    local RegisterHit = fastAttackNet and fastAttackNet:FindFirstChild("RE/RegisterHit")
+    local RegisterAttack = fastAttackNet and fastAttackNet:FindFirstChild("RE/RegisterAttack")
+
+    local function AttackMultipleTargets(targets)
+        pcall(function()
+            if not RegisterHit or not RegisterAttack or not targets or #targets == 0 then return end
+            local allTargets = {}
+            for _, targetChar in pairs(targets) do
+                local head = targetChar:FindFirstChild("Head")
+                if head then table.insert(allTargets, { targetChar, head }) end
+            end
+            if #allTargets == 0 then return end
+            RegisterAttack:FireServer(0)
+            RegisterHit:FireServer(allTargets[1][2], allTargets)
+        end)
+    end
+
+    local function StartFastAttack()
+        if FastAttackConnection then task.cancel(FastAttackConnection) end
+        FastAttackConnection = task.spawn(function()
+            while FastAttackEnabled do
+                task.wait(0.01)
+                local myChar = Players.LocalPlayer.Character
+                local myHRP = myChar and myChar:FindFirstChild("HumanoidRootPart")
+                if myHRP then
+                    local targetsInRange = {}
+                for _, player in pairs(Players:GetPlayers()) do
+                    if player ~= Players.LocalPlayer and player.Character then
+                        local humanoid = player.Character:FindFirstChild("Humanoid")
+                        local hrp = player.Character:FindFirstChild("HumanoidRootPart")
+                        if humanoid and hrp and humanoid.Health > 0 and (hrp.Position - myHRP.Position).Magnitude <= FastAttackRange then
+                            table.insert(targetsInRange, player.Character)
+                        end
+                    end
+                end
+                local enemiesFolder = workspace:FindFirstChild("Enemies")
+                if enemiesFolder then
+                    for _, npc in pairs(enemiesFolder:GetChildren()) do
+                        local humanoid = npc:FindFirstChild("Humanoid")
+                        local hrp = npc:FindFirstChild("HumanoidRootPart")
+                        if humanoid and hrp and humanoid.Health > 0 and (hrp.Position - myHRP.Position).Magnitude <= FastAttackRange then
+                            table.insert(targetsInRange, npc)
+                        end
+                    end
+                end
+                    if #targetsInRange > 0 then AttackMultipleTargets(targetsInRange) end
+                end
+            end
+        end)
+    end
+
+    local function StopFastAttack()
+        if FastAttackConnection then
+            task.cancel(FastAttackConnection)
+            FastAttackConnection = nil
+        end
+    end
+
+    createToggle(bfLeftScroll, "Fast Attack", false, function(v)
+        FastAttackEnabled = v
+        if v then StartFastAttack() else StopFastAttack() end
+    end)
+    createToggle(bfLeftScroll, "fruit aura", tbl2.FruitM1, function(v)
+        vhSet("FruitM1", v, tbl4.Fruit)
+    end)
+    createToggle(bfLeftScroll, "anti stun", tbl2.AntiStun, function(v)
+        tbl2.AntiStun = v
+    end)
+    createToggle(bfLeftScroll, "remove animations", tbl2.RemoveAnimations, function(v)
+        tbl2.RemoveAnimations = v
+        if v then pcall(fn21, localPlayer.Character) else pcall(fn22) end
+    end)
+    createToggle(bfLeftScroll, "remove ghost ship", tbl2.RemoveGhostShip, function(v)
+        tbl2.RemoveGhostShip = v
+        pcall(fn23, v)
+    end)
+
+    -- AIM: all aim/target-redirection controls are isolated here.
+    createLabel(farmLeftScroll, "[ Aim ]")
+    createToggle(farmLeftScroll, "skill redirect", tbl2.SkillRedirectSkill, function(v)
+        tbl2.SkillRedirectSkill = v
+    end)
+    createToggle(farmLeftScroll, "M1 redirect", tbl2.SkillRedirectM1, function(v)
+        tbl2.SkillRedirectM1 = v
+    end)
+    createToggle(farmLeftScroll, "target players", tbl2.SkillRedirectTargetPlayers, function(v)
+        tbl2.SkillRedirectTargetPlayers = v
+    end)
+    createToggle(farmLeftScroll, "target NPCs", tbl2.SkillRedirectTargetMobs, function(v)
+        tbl2.SkillRedirectTargetMobs = v
+    end)
+    createToggle(farmLeftScroll, "team check", tbl2.SkillRedirectTeamCheck, function(v)
+        tbl2.SkillRedirectTeamCheck = v
+    end)
+    createToggle(farmLeftScroll, "exclude no-PvP", tbl2.SkillRedirectExcludePVP, function(v)
+        tbl2.SkillRedirectExcludePVP = v
+    end)
+    createToggle(farmLeftScroll, "tween aim", tbl2.SkillRedirectTweenAim, function(v)
+        tbl2.SkillRedirectTweenAim = v
+    end)
+    createToggle(farmLeftScroll, "show FOV", tbl2.SkillRedirectShowFOV, function(v)
+        tbl2.SkillRedirectShowFOV = v
+    end)
+    createToggle(farmLeftScroll, "show lock line", tbl2.SkillRedirectShowLine, function(v)
+        tbl2.SkillRedirectShowLine = v
+    end)
+    createSlider(farmLeftScroll, "FOV radius", 10, 1000, tbl2.SkillRedirectFOV or 100, function(v)
+        tbl2.SkillRedirectFOV = v
+    end)
+
+    -- OTHERS: mobile UI, performance, server, character, and miscellaneous tools.
+    local othersOk, othersErr = pcall(function()
+    createLabel(configRightScroll, "[ UI Settings ]")
+    local baseMainSize = UDim2.new(0, 450, 0, 300)
+    local baseMainPosition = UDim2.new(0.3, 0, 0.3, 0)
+    local uiScale = 100
+    local uiTransparency = 30
+    local toggleKeyName = "RightShift"
+    local savedUiSettings = nil
+    local statsFpsEnabled, statsPingEnabled, statsCountEnabled = false, false, false
+    local lowPerformanceEnabled = false
+    local antiAfkConnection = nil
+    local fullbrightEnabled = false
+    local lighting = game:GetService("Lighting")
+    local originalLighting = { Brightness = lighting.Brightness, ClockTime = lighting.ClockTime, GlobalShadows = lighting.GlobalShadows, Ambient = lighting.Ambient, OutdoorAmbient = lighting.OutdoorAmbient }
+
+    local function applyStatsOverlay()
+        statsGui.Enabled = statsFpsEnabled or statsPingEnabled or statsCountEnabled
+    end
+    local function updateStatsOverlay(deltaTime)
+        local parts = {}
+        if statsFpsEnabled then table.insert(parts, "FPS: " .. tostring(math.floor(1 / math.max(deltaTime or (1 / 60), 0.001)))) end
+        if statsPingEnabled then
+            local ping = 0
+            pcall(function() ping = math.floor(lp:GetNetworkPing() * 1000) end)
+            table.insert(parts, "Ping: " .. tostring(ping) .. "ms")
+        end
+        if statsCountEnabled then table.insert(parts, "Players: " .. tostring(#Players:GetPlayers()) .. " | Server: " .. tostring(game.JobId):sub(1, 8)) end
+        statsLabel.Text = table.concat(parts, "   ")
+    end
+    victimHubRuntime2:TrackConnection(RunService.Heartbeat:Connect(function(deltaTime)
+        if statsGui.Enabled then updateStatsOverlay(deltaTime) end
+    end))
+
+    createToggle(configRightScroll, "Toggle UI Visibility", true, function(v)
+        mainFrame.Visible = v
+    end)
+    local minimizeButton = createButton(configRightScroll, "Minimize Button")
+    minimizeButton.MouseButton1Click:Connect(function() mainFrame.Visible = false end)
+    createSlider(configRightScroll, "UI Scale", 50, 150, uiScale, function(v)
+        uiScale = v
+        mainFrame.Size = UDim2.new(0, 450 * v / 100, 0, 300 * v / 100)
+    end, 5)
+    createSlider(configRightScroll, "UI Transparency", 0, 80, uiTransparency, function(v)
+        uiTransparency = v
+        mainFrame.BackgroundTransparency = v / 100
+    end, 5)
+    createInput(configRightScroll, "Toggle Keybind", toggleKeyName, function(v)
+        if Enum.KeyCode[v] then toggleKeyName = v end
+    end)
+    local resetPositionButton = createButton(configRightScroll, "Reset UI Position")
+    resetPositionButton.MouseButton1Click:Connect(function()
+        mainFrame.Position = baseMainPosition
+        toggleButton.Position = UDim2.new(0, 100, 0, 100)
+    end)
+    victimHubRuntime2:TrackConnection(UserInputService.InputBegan:Connect(function(input, processed)
+        if not processed and input.KeyCode == Enum.KeyCode[toggleKeyName] then mainFrame.Visible = not mainFrame.Visible end
+    end))
+
+    createLabel(configRightScroll, "[ Performance ]")
+    createToggle(configRightScroll, "FPS Counter", false, function(v) statsFpsEnabled = v; applyStatsOverlay() end)
+    createToggle(configRightScroll, "Ping Display", false, function(v) statsPingEnabled = v; applyStatsOverlay() end)
+    createToggle(configRightScroll, "Server/Player Count", false, function(v) statsCountEnabled = v; applyStatsOverlay() end)
+    createToggle(configRightScroll, "Low-Performance Mode", false, function(v)
+        lowPerformanceEnabled = v
+        if v then
+            pcall(function() settings().Rendering.QualityLevel = Enum.QualityLevel.Level01 end)
+            lighting.GlobalShadows = false
+        else
+            pcall(function() settings().Rendering.QualityLevel = Enum.QualityLevel.Automatic end)
+            lighting.GlobalShadows = originalLighting.GlobalShadows
+        end
+    end)
+
+    createLabel(configRightScroll, "[ Server ]")
+    local serverInfoLabel = createLabel(configRightScroll, "Server: " .. tostring(game.JobId):sub(1, 8) .. " | Players: " .. tostring(#Players:GetPlayers()))
+    local teleportService = game:GetService("TeleportService")
+    local rejoinButton = createButton(configRightScroll, "Rejoin Server")
+    rejoinButton.MouseButton1Click:Connect(function() pcall(function() teleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, lp) end) end)
+    local hopButton = createButton(configRightScroll, "Server Hop")
+    hopButton.MouseButton1Click:Connect(function() pcall(function() teleportService:Teleport(game.PlaceId, lp) end) end)
+    local copyJobButton = createButton(configRightScroll, "Copy Job ID")
+    copyJobButton.MouseButton1Click:Connect(function() if setclipboard then pcall(setclipboard, game.JobId) end end)
+
+    createLabel(configRightScroll, "[ Character ]")
+    local teamRemote = ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("CommF_")
+    local pirateButton = createButton(configRightScroll, "Change Team to Pirate")
+    pirateButton.MouseButton1Click:Connect(function() if teamRemote then pcall(function() teamRemote:InvokeServer("SetTeam", "Pirates") end) end end)
+    local marineButton = createButton(configRightScroll, "Change Team to Marine")
+    marineButton.MouseButton1Click:Connect(function() if teamRemote then pcall(function() teamRemote:InvokeServer("SetTeam", "Marines") end) end end)
+
+    createLabel(configRightScroll, "[ Miscellaneous ]")
+    createToggle(configRightScroll, "Anti-AFK", false, function(v)
+        if antiAfkConnection then antiAfkConnection:Disconnect(); antiAfkConnection = nil end
+        if v then
+            local virtualUser = game:GetService("VirtualUser")
+            antiAfkConnection = victimHubRuntime2:TrackConnection(lp.Idled:Connect(function() pcall(function() virtualUser:CaptureController(); virtualUser:ClickButton2(Vector2.new(0, 0)) end) end))
+        end
+    end)
+    createToggle(configRightScroll, "Fullbright", false, function(v)
+        fullbrightEnabled = v
+        if v then
+            lighting.Brightness = 2
+            lighting.ClockTime = 14
+            lighting.GlobalShadows = false
+            lighting.Ambient = Color3.new(1, 1, 1)
+            lighting.OutdoorAmbient = Color3.new(1, 1, 1)
+        else
+            lighting.Brightness = originalLighting.Brightness
+            lighting.ClockTime = originalLighting.ClockTime
+            lighting.GlobalShadows = originalLighting.GlobalShadows
+            lighting.Ambient = originalLighting.Ambient
+            lighting.OutdoorAmbient = originalLighting.OutdoorAmbient
+        end
+    end)
+    local defaultSettings = {}
+    for key, value in pairs(tbl2) do defaultSettings[key] = value end
+    local saveButton = createButton(configRightScroll, "Save UI Settings")
+    saveButton.MouseButton1Click:Connect(function()
+        savedUiSettings = {}
+        for key, value in pairs(tbl2) do savedUiSettings[key] = value end
+    end)
+    local loadButton = createButton(configRightScroll, "Load UI Settings")
+    loadButton.MouseButton1Click:Connect(function()
+        if savedUiSettings then for key, value in pairs(savedUiSettings) do tbl2[key] = value end end
+    end)
+
+    local function resetAllFeatures()
+        for _, setToggle in ipairs(toggleSetters) do pcall(setToggle, false) end
+        for _, resetSlider in ipairs(sliderResetters) do pcall(resetSlider) end
+        for key, value in pairs(defaultSettings) do
+            if type(value) == "boolean" then
+                tbl2[key] = value
+            elseif type(value) == "number" or type(value) == "string" then
+                tbl2[key] = value
+            end
+        end
+        selectedTarget = nil
+        name = nil
+        victimHubRuntime2.S.SelectedPlayerName = nil
+        victimHubRuntime2.S.CachedSelectedPlayer = nil
+        victimHubRuntime2.S.CurrentTargetPlayer = nil
+        pcall(fn18)
+        pcall(fn24, false)
+        pcall(fn26)
+        for _, moduleState in pairs(tbl4) do
+            if type(moduleState) == "table" and moduleState.Stop then pcall(moduleState.Stop) end
+        end
+        statsFpsEnabled, statsPingEnabled, statsCountEnabled = false, false, false
+        statsGui.Enabled = false
+        mainFrame.Visible = true
+        mainFrame.Size = baseMainSize
+        mainFrame.Position = baseMainPosition
+        mainFrame.BackgroundTransparency = 0.3
+        toggleButton.Position = UDim2.new(0, 100, 0, 100)
+        fullbrightEnabled = false
+        lighting.Brightness = originalLighting.Brightness
+        lighting.ClockTime = originalLighting.ClockTime
+        lighting.GlobalShadows = originalLighting.GlobalShadows
+        lighting.Ambient = originalLighting.Ambient
+        lighting.OutdoorAmbient = originalLighting.OutdoorAmbient
+    end
+    createLabel(configRightScroll, "[ Reset ]")
+    local resetUiButton = createButton(configRightScroll, "Reset UI")
+    resetUiButton.MouseButton1Click:Connect(resetAllFeatures)
+
+    end)
+    if not othersOk then warn("[Goon Hub] Others tools disabled: " .. tostring(othersErr)) end
+
+    -- The remaining category panels intentionally stay empty.
+    local function refreshAllVisibleLayouts()
+        for _, scroll in ipairs({homeScroll, espScroll, otherLeftScroll, otherRightScroll, bfLeftScroll, bfRightScroll, farmLeftScroll, farmRightScroll, configLeftScroll, configRightScroll}) do
+            local layout = scroll:FindFirstChildOfClass("UIListLayout")
+            if layout then
+                scroll.CanvasSize = UDim2.new(0, 0, 0, layout.AbsoluteContentSize.Y + 10)
+                layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+                    scroll.CanvasSize = UDim2.new(0, 0, 0, layout.AbsoluteContentSize.Y + 10)
+                end)
+            end
+        end
+    end
+    task.defer(refreshAllVisibleLayouts)
+    refreshAllVisibleLayouts()
+    refreshPlayerList()
+    Players.PlayerAdded:Connect(function()
+        task.defer(refreshPlayerList)
+    end)
+    Players.PlayerRemoving:Connect(function(player)
+        if selectedTarget == player then
+            selectedTarget = nil
+            name = nil
+            selectPlayerBtn.Text = "Select Player"
+            tbl2.TweenToPlayer = false
+            stopTweenIfUnused()
+        end
+        task.defer(refreshPlayerList)
+    end)
+    end -- close the embedded Victim engine scope
+end
+
+-- The preserved Goon GUI and Victim feature engine start directly.
+InitHub()
