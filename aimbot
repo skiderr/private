@@ -1,0 +1,177 @@
+-- CentuDox Aimbot — reconstrucción estática
+-- Recuperado de la versión histórica CentuDox Aimbot.xyz
+-- No ejecutado.
+
+local Aimbot = {}
+
+-- Selector de objetivos.
+-- Recorre workspace.Enemies y workspace.Characters.
+function Aimbot.FindTargets(character, maxDistance)
+    local origin = character:GetPivot().Position
+    local results = {}
+
+    local function scan(container)
+        if not container then
+            return
+        end
+
+        for _, model in ipairs(container:GetChildren()) do
+            if model ~= character
+                and model:FindFirstChild("Humanoid")
+                and model.Humanoid.Health > 0 then
+
+                local root = model:FindFirstChild("HumanoidRootPart")
+
+                if root and (origin - root.Position).Magnitude <= maxDistance then
+                    table.insert(results, {
+                        model,
+                        root
+                    })
+                end
+            end
+        end
+    end
+
+    scan(workspace:FindFirstChild("Enemies"))
+    scan(workspace:FindFirstChild("Characters"))
+
+    return results
+end
+
+-- Aimbot NPC.
+-- El objetivo se adelanta usando su velocidad.
+function Aimbot.UpdateNpcAim(
+    getTarget,
+    targetState,
+    targetIndex,
+    marker,
+    enabled,
+    prediction
+)
+    if not enabled then
+        targetState[targetIndex] = nil
+        marker.Transparency = 1
+        return
+    end
+
+    local target = getTarget()
+
+    if not target then
+        targetState[targetIndex] = nil
+        marker.Transparency = 1
+        return
+    end
+
+    local root = target.HumanoidRootPart
+    local humanoid = target:FindFirstChildOfClass("Humanoid")
+
+    if humanoid and humanoid.WalkSpeed >= 5 then
+        targetState[targetIndex] =
+            root.Position + root.Velocity * prediction
+    else
+        targetState[targetIndex] =
+            root.Position
+    end
+
+    marker.Transparency = 0.4
+    marker.CFrame = CFrame.new(targetState[targetIndex])
+end
+
+-- Cambia la posición Hit del objeto de ataque.
+function Aimbot.ApplyNpcHit(
+    hitObject,
+    targetState,
+    targetIndex,
+    enabled
+)
+    if enabled
+        and targetState[targetIndex]
+        and type(hitObject) == "table" then
+
+        hitObject.Hit =
+            CFrame.new(targetState[targetIndex])
+    end
+end
+
+-- Aimbot de cámara.
+function Aimbot.UpdateCamera(
+    camera,
+    targetState,
+    targetIndex,
+    prediction
+)
+    local root = targetState[targetIndex]
+
+    if not root or not root.Parent then
+        return false
+    end
+
+    camera.CFrame = CFrame.new(
+        camera.CFrame.Position,
+        root.Position + root.Velocity * prediction
+    )
+
+    return true
+end
+
+-- Aimbot global mediante hook de namecall.
+-- El original reemplazaba cualquier argumento Vector3
+-- durante FireServer o InvokeServer.
+function Aimbot.RewriteRemoteArguments(
+    originalNamecall,
+    remote,
+    args,
+    targetState,
+    targetIndex,
+    enabled,
+    method
+)
+    if enabled
+        and targetState[targetIndex]
+        and (
+            method == "FireServer"
+            or method == "InvokeServer"
+        ) then
+
+        local rewritten = table.pack(table.unpack(args))
+
+        for index, value in pairs(rewritten) do
+            if typeof(value) == "Vector3" then
+                rewritten[index] =
+                    targetState[targetIndex]
+            end
+        end
+
+        return originalNamecall(
+            remote,
+            table.unpack(
+                rewritten,
+                1,
+                rewritten.n
+            )
+        )
+    end
+
+    return originalNamecall(
+        remote,
+        table.unpack(args)
+    )
+end
+
+-- Actualización del objetivo seleccionado.
+function Aimbot.UpdateSelectedTarget(
+    selectTarget,
+    targetState,
+    targetIndex,
+    enabled
+)
+    if enabled then
+        local selected = selectTarget()
+
+        if selected then
+            targetState[targetIndex] = selected
+        end
+    end
+end
+
+return Aimbot
