@@ -1,0 +1,1725 @@
+--=============================================================
+-- Mammoth 上飞 + V技能 + 虚空M1 + 自动跳服(api/remote 可选, 跑1分钟→5秒重试) + Discord Webhook
+-- 依赖: Blox Fruits (Third Sea)
+-- 用法: 直接执行, 脚本会自行 装备猛犸 -> 上飞300 -> V -> 循环M1
+--=============================================================
+
+local Players           = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService        = game:GetService("RunService")
+local HttpService       = game:GetService("HttpService")
+local TeleportService   = game:GetService("TeleportService")
+local VirtualInputManager = game:GetService("VirtualInputManager")
+
+local LocalPlayer = Players.LocalPlayer
+if not LocalPlayer then
+    Players:GetPropertyChangedSignal("LocalPlayer"):Wait()
+    LocalPlayer = Players.LocalPlayer
+end
+
+--=============================================================
+-- 配置
+--=============================================================
+-- 阵营可在脚本加载前用 getgenv().Team 指定, 不写则默认 Pirates:
+--     getgenv().Team = "Pirates"   -- 海贼
+--     getgenv().Team = "Marines"   -- 海军
+--     loadstring(game:HttpGet("..."))()
+local function ResolveTeam()
+    local env = getgenv and getgenv() or _G
+    local raw = env and env.Team
+
+    if type(raw) == "string" and raw ~= "" then
+        local lower = string.lower(raw)
+        -- 容错: pirate/海贼 -> Pirates, marine/海军 -> Marines
+        if string.find(lower, "marine", 1, true) or string.find(raw, "海军", 1, true) then
+            return "Marines"
+        end
+        return "Pirates"
+    end
+    return "Pirates"
+end
+
+-- 查服方式可在脚本加载前用 getgenv().hop 指定, 不写则默认 api:
+--     getgenv().hop = "api"      -- Roblox 公开 API (games.roblox.com)
+--     getgenv().hop = "remote"   -- 游戏内 __ServerBrowser 远程
+local function ResolveHop()
+    local env = getgenv and getgenv() or _G
+    local raw = env and env.hop
+
+    if type(raw) == "string" then
+        local lower = string.lower(raw)
+        if string.find(lower, "remote", 1, true) then
+            return "remote"
+        end
+        if string.find(lower, "api", 1, true) then
+            return "api"
+        end
+    end
+    return "api"
+end
+
+local CFG = {
+    FruitName        = "Mammoth-Mammoth", -- 果实工具名
+    FlySpeed         = 300,               -- 上升速度 (studs/秒)
+    SkillKey         = "V",               -- 技能按键
+    M1Interval       = 0.1,               -- M1 循环间隔
+    TransformTimeout = 60,                -- 持续按V直到变身的最长时长(秒)
+    SkillRetryInterval = 1,               -- 每次按V的间隔(秒)
+
+    -- 跳服 (查服方式由 getgenv().hop 决定: "api" 或 "remote")
+    HopInterval      = 60,                -- 首次等待: 落地后先跑 60 秒再开始跳服
+    HopRetryInterval = 5,                 -- 跳服重试间隔: 没跳成功就每 5 秒再试
+    HopPreferredPlayers = 10,             -- [api] 优先挑至少这么多人的服
+    HopMinPlayers    = 2,                 -- [api] 优先档挑不到时的最低人数
+    HopMaxPlayers    = 12,                -- [remote] 人数上限
+    HopMinBounty     = 0,                 -- [remote] 赏金下限
+    HopMaxBounty     = 999999999,         -- [remote] 赏金上限
+    NoHopInCombat    = true,              -- 战斗中(赏金受威胁)不跳服, 等战斗结束
+
+    AutoV3           = true,              -- 自动释放 V3 (种族技能第三阶)
+    AutoV4           = true,              -- 自动释放 V4 (种族觉醒)
+    V3Interval       = 2,                 -- V3 检测间隔 (秒)
+    V4Interval       = 1,                 -- V4 检测间隔 (秒)
+
+    Noclip           = true,              -- 穿墙
+
+    -- 自动武装色 (霸气)
+    AutoHaki         = true,              -- 自动开启武装色
+    AutoHakiInterval = 2,                 -- 检测间隔 (秒)
+
+    -- 自动选阵营
+    AutoTeam         = true,              -- 自动加入阵营
+    Team             = "Pirates",         -- 由 getgenv().Team 决定, 见下方同步
+
+    -- 换服自动执行
+    AutoExec         = true,              -- 跳服后自动重新执行
+    AutoExecUrl      = "https://rjr-loader.top/script/infrange_bounty", -- 新服加载后拉取的脚本地址
+
+    -- Discord Webhook
+    WebhookEnabled   = true,
+    WebhookURL       = "https://discord.com/api/webhooks/1516125716511592453/KuyDgvee-icr5gB7VKygz4Ymn4ktEaB6ov0VRr9JLyT6ZgYscnxXNObuOcSMGYqs27gx",
+    WebhookName      = "Mammoth Farmer",
+    NotifyStart      = true,              -- 启动通知
+    NotifyKill       = true,              -- 击杀通知
+    NotifyHop        = true,              -- 跳服通知
+}
+
+--=============================================================
+-- 换服自动执行
+--=============================================================
+-- 新服加载后执行的源码: loadstring(game:HttpGet("<AutoExecUrl>"))()
+local src = string.format('loadstring(game:HttpGet("%s"))()', CFG.AutoExecUrl)
+local SRC_TERMINATOR = "--===SRC-END==="
+
+-- 用 getgenv().Team 覆盖配置里的阵营, 并回写 getgenv 方便下次跳服沿用
+CFG.Team = ResolveTeam()
+-- 用 getgenv().hop 决定查服方式
+CFG.HopMethod = ResolveHop()
+do
+    local env = getgenv and getgenv() or _G
+    if env then
+        env.Team = CFG.Team
+        env.hop = CFG.HopMethod
+    end
+end
+
+
+local VOID_VECTOR = Vector3.new(9e30, 9e30, 9e30) -- 虚空M1参数
+
+--=============================================================
+-- 工具函数
+--=============================================================
+local function Log(fmt, ...)
+    local ok, msg = pcall(string.format, fmt, ...)
+    print("[Mammoth] " .. (ok and msg or tostring(fmt)))
+end
+
+local function GetChar()
+    local char = LocalPlayer.Character
+    if char and char.Parent then return char end
+    return nil
+end
+
+local function GetHRP()
+    local char = GetChar()
+    return char and char:FindFirstChild("HumanoidRootPart")
+end
+
+local function GetHum()
+    local char = GetChar()
+    return char and char:FindFirstChildOfClass("Humanoid")
+end
+
+-- 安全 WaitForChild (带超时, 不报错)
+local function SafeWait(parent, name, timeout)
+    if not parent then return nil end
+    local child = parent:FindFirstChild(name)
+    if child then return child end
+    local ok, result = pcall(function()
+        return parent:WaitForChild(name, timeout or 5)
+    end)
+    return ok and result or nil
+end
+
+-- Pcall 包装的远程调用 (带超时保护, 防止 InvokeServer 挂死)
+local function InvokeRemote(remote, timeout, ...)
+    if not remote then return false end
+    local args = table.pack(...)
+    local done, result = false, nil
+    task.spawn(function()
+        local ok, res = pcall(function()
+            return remote:InvokeServer(table.unpack(args, 1, args.n))
+        end)
+        done, result = true, ok and res or nil
+    end)
+    local deadline = os.clock() + (timeout or 5)
+    while not done and os.clock() < deadline do
+        task.wait(0.05)
+    end
+    return done, result
+end
+
+--=============================================================
+-- WEBHOOK SYSTEM (Discord)
+--=============================================================
+local SessionStats = {
+    Kills      = 0,
+    Earned     = 0,
+    JoinedAt   = os.clock(),
+    LastVictim = nil,
+}
+
+-- Detect executor name (sent to Discord for debugging)
+local ExecutorName = "Unknown"
+pcall(function()
+    if type(identifyexecutor) == "function" then
+        ExecutorName = tostring(identifyexecutor() or "Unknown")
+    end
+end)
+
+-- Detect the available HTTP request function (only one that actually exists)
+local RequestFn, RequestFnName = nil, "none"
+do
+    local ok, fn, name = pcall(function()
+        if syn and type(syn.request) == "function" then
+            return syn.request, "syn.request"
+        end
+        if type(http_request) == "function" then
+            return http_request, "http_request"
+        end
+        if type(request) == "function" then
+            return request, "request"
+        end
+        if http and type(http.request) == "function" then
+            return http.request, "http.request"
+        end
+        if fluxus and type(fluxus.request) == "function" then
+            return fluxus.request, "fluxus.request"
+        end
+        return nil, "none"
+    end)
+    if ok and fn then
+        RequestFn, RequestFnName = fn, name
+    end
+end
+
+Log("[Webhook] HTTP request method: %s | Executor: %s", RequestFnName, ExecutorName)
+
+-- Parse HTTP status code from the response (executors use different fields)
+local function ParseStatus(response)
+    if type(response) ~= "table" then return nil end
+    local raw = response.StatusCode or response.status_code or response.code
+    if type(raw) == "number" then return raw end
+    if type(raw) == "string" then return tonumber(raw:match("(%d%d%d)")) end
+    raw = response.Status
+    if type(raw) == "number" then return raw end
+    if type(raw) == "string" then return tonumber(raw:match("(%d%d%d)")) end
+    return nil
+end
+
+-- Send via executor request function
+local function SendViaRequestFn(url, body)
+    if not RequestFn then return false end
+    local ok, response = pcall(RequestFn, {
+        Url     = url,
+        Method  = "POST",
+        Headers = { ["Content-Type"] = "application/json" },
+        Body    = body,
+    })
+    if not ok then
+        Log("[Webhook] %s call error: %s", RequestFnName, tostring(response))
+        return false
+    end
+    if type(response) == "table" then
+        if response.Success == true then return true end
+        local status = ParseStatus(response)
+        if status == 429 then
+            Log("[Webhook] Rate limited by Discord (429), waiting 2 seconds")
+            task.wait(2)
+            return false
+        end
+        if status and status >= 200 and status < 300 then
+            return true
+        end
+        Log("[Webhook] %s returned status: %s (possibly blocked or invalid URL)", RequestFnName, tostring(status or "unknown"))
+        return false
+    end
+    -- No error but no standard response table; most executors have sent by now
+    Log("[Webhook] %s returned no standard response, treating as success", RequestFnName)
+    return true
+end
+
+-- Fallback: HttpService (some executors expose client HTTP)
+local function SendViaHttpService(url, body)
+    local ok, err = pcall(function()
+        HttpService:PostAsync(url, body, Enum.HttpContentType.ApplicationJson)
+    end)
+    if not ok then
+        Log("[Webhook] HttpService failed: %s", tostring(err))
+        return false
+    end
+    return true
+end
+
+local LastSendAt = 0
+
+local function SendWebhook(embed)
+    if not CFG.WebhookEnabled then return false end
+    if type(CFG.WebhookURL) ~= "string" or CFG.WebhookURL == "" then
+        Log("[Webhook] URL not configured")
+        return false
+    end
+
+    -- Discord rate limit protection: at least 2 seconds between sends
+    local now = os.clock()
+    if now - LastSendAt < 2 then
+        task.wait(2 - (now - LastSendAt))
+    end
+    LastSendAt = os.clock()
+
+    local body = HttpService:JSONEncode({
+        username = CFG.WebhookName,
+        embeds   = { embed },
+    })
+
+    -- Fallback domain: some executors only whitelist discordapp.com
+    local urls = { CFG.WebhookURL }
+    local fallback = tostring(CFG.WebhookURL):gsub("discord%.com", "discordapp.com")
+    if fallback ~= CFG.WebhookURL then
+        table.insert(urls, fallback)
+    end
+
+    for _, url in ipairs(urls) do
+        if SendViaRequestFn(url, body) then
+            Log("[Webhook] Sent successfully (%s)", RequestFnName)
+            return true
+        end
+    end
+
+    if SendViaHttpService(CFG.WebhookURL, body) then
+        Log("[Webhook] Sent successfully (HttpService)")
+        return true
+    end
+
+    Log("[Webhook] All methods failed — your executor may block the Discord API, try a different executor")
+    return false
+end
+
+--=============================================================
+-- EMBED HELPERS
+--=============================================================
+local function Comma(number)
+    local value = tostring(math.floor(tonumber(number) or 0))
+    while true do
+        local newValue, count = value:gsub("^(-?%d+)(%d%d%d)", "%1,%2")
+        value = newValue
+        if count == 0 then break end
+    end
+    return value
+end
+
+local function Field(name, value, inline)
+    return {
+        name   = tostring(name),
+        value  = tostring(value):sub(1, 1024),
+        inline = inline == true,
+    }
+end
+
+local function CreateEmbed(title, color)
+    return {
+        title     = title,
+        color     = color,
+        fields    = {},
+        footer    = { text = CFG.WebhookName },
+        timestamp = DateTime.now():ToIsoDate(),
+    }
+end
+
+-- Read player bounty (Blox Fruits: leaderstats -> Bounty/Honor)
+local function GetPlayerBounty(player)
+    local ls = player and player:FindFirstChild("leaderstats")
+    if not ls then return 0 end
+    local b = ls:FindFirstChild("Bounty/Honor") or ls:FindFirstChild("Bounty") or ls:FindFirstChild("Honor")
+    if b then return tonumber(b.Value) or 0 end
+    return 0
+end
+
+local function GetMyBounty()
+    return GetPlayerBounty(LocalPlayer)
+end
+
+--=============================================================
+-- KILL WEBHOOK
+--=============================================================
+local function SendKillWebhook(data)
+    if not CFG.NotifyKill then return end
+    data = data or {}
+
+    local embed = CreateEmbed("☠️ Kill", 0x2ECC71)
+    embed.fields = {
+        Field("Killed", "**" .. tostring(data.PlayerName or "Unknown") .. "**", false),
+        Field("UserId", tostring(data.UserId or "?"), true),
+        Field("Target Bounty", Comma(data.TargetBounty or 0), true),
+        Field("Bounty Earned", "+" .. Comma(data.Earned or 0), true),
+        Field("Current Bounty", Comma(data.CurrentBounty or 0), true),
+    }
+
+    SendWebhook(embed)
+end
+
+--=============================================================
+-- SERVER HOP WEBHOOK
+--=============================================================
+local function SendServerHopWebhook(data)
+    if not CFG.NotifyHop then return end
+    data = data or {}
+
+    local uptime = os.clock() - SessionStats.JoinedAt
+    local timeText = string.format("%d:%02d", math.floor(uptime / 60), math.floor(uptime % 60))
+
+    local embed = CreateEmbed("🔄 Server Hop", 0x3498DB)
+    embed.fields = {
+        Field("Player", LocalPlayer and LocalPlayer.Name or "Unknown", false),
+        Field("Region", tostring(data.Region or "Unknown"), true),
+        Field("Hop Method", tostring(data.Method or "Unknown"), true),
+        Field("Server Uptime", timeText, true),
+        Field("Kills", tostring(data.TotalKills or 0), true),
+        Field("Bounty Earned", "+" .. Comma(data.TotalEarned or 0), true),
+        Field("Current Bounty", Comma(data.CurrentBounty or 0), true),
+    }
+    if data.Target then
+        table.insert(embed.fields, Field("Target Server", tostring(data.Target), false))
+    end
+
+    SendWebhook(embed)
+end
+
+--=============================================================
+-- START WEBHOOK (doubles as a test message)
+--=============================================================
+local function SendStartWebhook()
+    if not CFG.NotifyStart then return end
+
+    local embed = CreateEmbed("✅ Script Started", 0x00FF00)
+    embed.fields = {
+        Field("Player", LocalPlayer and LocalPlayer.Name or "Unknown", true),
+        Field("UserId", tostring(LocalPlayer and LocalPlayer.UserId or "?"), true),
+        Field("Current Bounty", Comma(GetMyBounty()), true),
+        Field("Team", tostring(CFG.Team), true),
+        Field("Executor", ExecutorName, true),
+        Field("Request Method", RequestFnName, true),
+        Field("JobId", tostring(game.JobId):sub(1, 20), false),
+    }
+
+    SendWebhook(embed)
+end
+
+--=============================================================
+-- KILL / BOUNTY TRACKING
+--=============================================================
+local DeathConns = {}
+
+local function WatchPlayer(player)
+    if player == LocalPlayer then return end
+    if DeathConns[player] then return end
+
+    local function hookCharacter(char)
+        task.spawn(function()
+            local hum = char:WaitForChild("Humanoid", 15)
+            if not hum then return end
+            hum.Died:Connect(function()
+                SessionStats.LastVictim = {
+                    Name   = player.Name,
+                    UserId = player.UserId,
+                    Bounty = GetPlayerBounty(player),
+                    Time   = os.clock(),
+                }
+            end)
+        end)
+    end
+
+    if player.Character then hookCharacter(player.Character) end
+    DeathConns[player] = player.CharacterAdded:Connect(hookCharacter)
+end
+
+local function StartKillTracking()
+    for _, p in ipairs(Players:GetPlayers()) do
+        WatchPlayer(p)
+    end
+    Players.PlayerAdded:Connect(function(p)
+        task.delay(1, function() WatchPlayer(p) end)
+    end)
+    Players.PlayerRemoving:Connect(function(p)
+        DeathConns[p] = nil
+    end)
+
+    -- Bounty increase = kill
+    task.spawn(function()
+        local lastBounty = GetMyBounty()
+        while true do
+            task.wait(1)
+            local current = GetMyBounty()
+            if current > lastBounty then
+                local earned = current - lastBounty
+                SessionStats.Earned = SessionStats.Earned + earned
+                SessionStats.Kills = SessionStats.Kills + 1
+
+                local victim = SessionStats.LastVictim
+                local fresh = victim and (os.clock() - victim.Time) < 10
+
+                pcall(function()
+                    SendKillWebhook({
+                        PlayerName    = fresh and victim.Name or "Unknown",
+                        UserId        = fresh and victim.UserId or "?",
+                        TargetBounty  = fresh and victim.Bounty or 0,
+                        Earned        = earned,
+                        CurrentBounty = current,
+                    })
+                end)
+
+                if fresh then
+                    SessionStats.LastVictim = nil
+                end
+            end
+            lastBounty = current
+        end
+    end)
+
+    Log("Kill/bounty tracking started (Kill Webhook: %s)", tostring(CFG.NotifyKill))
+end
+
+--=============================================================
+-- 装备猛犸果实
+--=============================================================
+local function FindFruit()
+    local name = CFG.FruitName
+    local char = GetChar()
+    if char then
+        local tool = char:FindFirstChild(name)
+        if tool and tool:IsA("Tool") then return tool end
+    end
+    local backpack = LocalPlayer:FindFirstChild("Backpack")
+    if backpack then
+        local tool = backpack:FindFirstChild(name)
+        if tool and tool:IsA("Tool") then return tool end
+    end
+    -- 兜底: 按 ToolTip 找恶魔果实
+    for _, container in ipairs({ char, backpack }) do
+        if container then
+            for _, child in ipairs(container:GetChildren()) do
+                if child:IsA("Tool") and child.ToolTip == "Blox Fruit" then
+                    return child
+                end
+            end
+        end
+    end
+    return nil
+end
+
+local function EquipMammoth()
+    local hum = GetHum()
+    if not hum then return false end
+
+    -- 已经装备
+    local char = GetChar()
+    local equipped = char and char:FindFirstChildOfClass("Tool")
+    if equipped and equipped.Name == CFG.FruitName then
+        return true
+    end
+
+    -- 方式1: Humanoid:EquipTool
+    local fruit = FindFruit()
+    if fruit and fruit.Parent ~= char then
+        pcall(function() hum:EquipTool(fruit) end)
+        task.wait(0.3)
+    end
+
+    char = GetChar()
+    equipped = char and char:FindFirstChildOfClass("Tool")
+    if equipped and equipped.Name == CFG.FruitName then
+        return true
+    end
+
+    -- 方式2: 按快捷键 (数字键对应工具栏槽位)
+    local hotbar = LocalPlayer:FindFirstChild("PlayerGui")
+    hotbar = hotbar and hotbar:FindFirstChild("Hotbar")
+    hotbar = hotbar and hotbar:FindFirstChild("Hotbar")
+    if hotbar then
+        for _, slot in ipairs(hotbar:GetChildren()) do
+            local key = slot:FindFirstChild("KeyLabel")
+            local toolName = slot:GetAttribute("ItemName") or (slot:FindFirstChild("ToolName") and slot.ToolName.Text)
+            if (toolName and tostring(toolName):find("Mammoth", 1, true)) and key then
+                local code = Enum.KeyCode[key.Text]
+                if code then
+                    pcall(function()
+                        VirtualInputManager:SendKeyEvent(true, code, false, game)
+                        task.wait(0.1)
+                        VirtualInputManager:SendKeyEvent(false, code, false, game)
+                    end)
+                    task.wait(0.3)
+                end
+            end
+        end
+    end
+
+    char = GetChar()
+    equipped = char and char:FindFirstChildOfClass("Tool")
+    return equipped ~= nil and equipped.Name == CFG.FruitName
+end
+
+-- 等待 Mammoth 工具完全加载 (含 M1 远程)
+local function WaitForMammoth(timeout)
+    local deadline = os.clock() + (timeout or 15)
+    while os.clock() < deadline do
+        local char = GetChar()
+        local mammoth = char and char:FindFirstChild(CFG.FruitName)
+        if mammoth and mammoth:FindFirstChild("LeftClickRemote") then
+            return mammoth
+        end
+        if not mammoth then
+            pcall(EquipMammoth)
+        end
+        task.wait(0.2)
+    end
+    return nil
+end
+
+--=============================================================
+-- 上飞 300 studs/s
+--=============================================================
+local FlyActive = false
+local FlyConn = nil
+local FlyObjects = {}
+
+local function MakeFlyObjects(hrp)
+    local objects = { Parts = {} }
+
+    local att = Instance.new("Attachment")
+    att.Name = "MammothFlyAtt"
+    att.Parent = hrp
+    objects.Attachment = att
+
+    local bv = Instance.new("BodyVelocity")
+    bv.Name = "MammothFlyVelocity"
+    bv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+    bv.P = 1250
+    bv.Velocity = Vector3.new(0, CFG.FlySpeed, 0)
+    bv.Parent = hrp
+    objects.Velocity = bv
+
+    local bg = Instance.new("BodyGyro")
+    bg.Name = "MammothFlyGyro"
+    bg.MaxTorque = Vector3.new(9e9, 9e9, 9e9)
+    bg.P = 3000
+    bg.D = 500
+    bg.CFrame = hrp.CFrame
+    bg.Parent = hrp
+    objects.Gyro = bg
+
+    return objects
+end
+
+local function SetPartsCollide(char, collide)
+    for _, part in ipairs(char:GetDescendants()) do
+        if part:IsA("BasePart") then
+            pcall(function() part.CanCollide = collide end)
+        end
+    end
+end
+
+local function StopFly()
+    FlyActive = false
+
+    if FlyConn then
+        pcall(function() FlyConn:Disconnect() end)
+        FlyConn = nil
+    end
+
+    if FlyObjects.Velocity then pcall(function() FlyObjects.Velocity:Destroy() end) end
+    if FlyObjects.Gyro then pcall(function() FlyObjects.Gyro:Destroy() end) end
+    if FlyObjects.Attachment then pcall(function() FlyObjects.Attachment:Destroy() end) end
+    FlyObjects = {}
+
+    local hum = GetHum()
+    local hrp = GetHRP()
+    if hum then
+        pcall(function()
+            hum.PlatformStand = false
+            hum:ChangeState(Enum.HumanoidStateType.GettingUp)
+        end)
+    end
+    if hrp then
+        pcall(function()
+            hrp.AssemblyLinearVelocity = Vector3.zero
+            hrp.AssemblyAngularVelocity = Vector3.zero
+        end)
+    end
+    local char = GetChar()
+    if char then SetPartsCollide(char, true) end
+end
+
+local function StartFly()
+    StopFly()
+
+    local hrp = GetHRP()
+    local hum = GetHum()
+    if not hrp or not hum then
+        Log("StartFly 失败: 角色未加载")
+        return false
+    end
+
+    -- 取得网络所有权, 否则速度会被服务器回滚
+    pcall(function() hrp:SetNetworkOwner(LocalPlayer) end)
+
+    hum.PlatformStand = true
+    pcall(function() hum:ChangeState(Enum.HumanoidStateType.Physics) end)
+    SetPartsCollide(GetChar(), false)
+
+    FlyObjects = MakeFlyObjects(hrp)
+    FlyActive = true
+
+    FlyConn = RunService.Heartbeat:Connect(function()
+        if not FlyActive then return end
+
+        local root = GetHRP()
+        local health = GetHum()
+        if not root or not health or health.Health <= 0 then
+            StopFly()
+            return
+        end
+
+        -- 持续压速度: 每秒 CFG.FlySpeed studs 垂直上升
+        local bv = FlyObjects.Velocity
+        if bv and bv.Parent then
+            bv.Velocity = Vector3.new(0, CFG.FlySpeed, 0)
+        end
+        local bg = FlyObjects.Gyro
+        if bg and bg.Parent then
+            bg.CFrame = CFrame.new(root.Position)
+        end
+    end)
+
+    Log("上升已开启: %d studs/秒", CFG.FlySpeed)
+    return true
+end
+
+--=============================================================
+-- 穿墙 (Noclip)
+--=============================================================
+-- 持续把角色所有 BasePart 的 CanCollide 关掉, 并用弱键表记住改过的部件
+-- 以便关闭时精确还原 (不会把本来就不碰撞的部件误设成碰撞)
+local NoclipActive = false
+local NoclipConn = nil
+local NoclipChanged = setmetatable({}, { __mode = "k" })
+local NoclipIndex = 0
+local NoclipLastScan = 0
+
+local function ApplyNoclipPass()
+    local char = GetChar()
+    if not char then return end
+
+    local parts = char:GetDescendants()
+    local count = #parts
+    if count == 0 then return end
+
+    -- 每次只处理一个切片, 大角色模型下避免单帧卡顿
+    local perPass = 40
+    if count <= perPass then
+        NoclipIndex = 0
+    else
+        NoclipIndex = NoclipIndex % count
+    end
+
+    local processed = 0
+    local i = NoclipIndex
+    while processed < perPass and processed < count do
+        i = (i % count) + 1
+        local part = parts[i]
+        if part and part:IsA("BasePart") and part.CanCollide then
+            NoclipChanged[part] = true
+            part.CanCollide = false
+        end
+        processed = processed + 1
+    end
+    NoclipIndex = i
+end
+
+local function StopNoclip()
+    NoclipActive = false
+
+    if NoclipConn then
+        pcall(function() NoclipConn:Disconnect() end)
+        NoclipConn = nil
+    end
+
+    -- 还原被我们改过的部件
+    for part in pairs(NoclipChanged) do
+        if typeof(part) == "Instance" and part.Parent then
+            pcall(function() part.CanCollide = true end)
+        end
+    end
+    NoclipChanged = setmetatable({}, { __mode = "k" })
+    NoclipIndex = 0
+end
+
+local function StartNoclip()
+    if NoclipActive then return end
+    NoclipActive = true
+
+    NoclipConn = RunService.Stepped:Connect(function()
+        if not NoclipActive then return end
+
+        local char = GetChar()
+        if not char then return end
+
+        ApplyNoclipPass()
+
+        -- 保险: 万一穿到地图底下, 拉回上方, 免得掉进虚空
+        local root = GetHRP()
+        if root and root.Position.Y < -500 then
+            pcall(function()
+                root.CFrame = CFrame.new(root.Position.X, 200, root.Position.Z)
+            end)
+            Log("检测到掉出地图, 已拉回上方")
+        end
+    end)
+
+    Log("穿墙已开启")
+end
+
+--=============================================================
+-- 释放一次 V 技能
+--=============================================================
+-- 技能板路径: PlayerGui.Main.Skills.<工具名>.<按键>
+local function GetSkillBoard(toolName)
+    local pg = LocalPlayer:FindFirstChild("PlayerGui")
+    local main = pg and pg:FindFirstChild("Main")
+    local skills = main and main:FindFirstChild("Skills")
+    return skills and skills:FindFirstChild(toolName)
+end
+
+-- 方式1: 直接触发技能板的 Mobile 按钮连接 (无需真实输入)
+local function FireSkillByConnections(skillKey)
+    if not getconnections then return false end
+
+    local char = GetChar()
+    local tool = char and char:FindFirstChildOfClass("Tool")
+    if not tool then return false end
+
+    local board = GetSkillBoard(tool.Name)
+    local button = board and board:FindFirstChild(skillKey)
+    local mobile = button and button:FindFirstChild("Mobile")
+    if not mobile then return false end
+
+    local conns = getconnections(mobile.MouseButton1Down)
+    if not conns or #conns == 0 then return false end
+
+    for _, conn in ipairs(conns) do
+        pcall(function() conn:Fire() end)
+    end
+    task.wait(0.15)
+    if getconnections(mobile.MouseButton1Up) then
+        for _, conn in ipairs(getconnections(mobile.MouseButton1Up)) do
+            pcall(function() conn:Fire() end)
+        end
+    end
+    return true
+end
+
+-- 方式2: 模拟键盘按键
+local function FireSkillByKey(skillKey)
+    local code = Enum.KeyCode[skillKey:upper()]
+    if not code then return false end
+    local ok = pcall(function()
+        VirtualInputManager:SendKeyEvent(true, code, false, game)
+        task.wait(0.3)
+        VirtualInputManager:SendKeyEvent(false, code, false, game)
+    end)
+    task.wait(0.2)
+    return ok
+end
+
+--=============================================================
+-- 猛犸形态判断
+--=============================================================
+-- 变身判断: workspace.Characters.<玩家名>.Mammoth.Mammoth
+-- 变身成猛犸后人形模型会挂到 workspace.Characters 下, 该结构存在即为已变身
+local function IsMammothOn()
+    local chars = workspace:FindFirstChild("Characters")
+    if not chars then return false end
+
+    -- 结构 1: Characters.<玩家名>.Mammoth.Mammoth (标准路径)
+    local me = chars:FindFirstChild(LocalPlayer.Name)
+    if me then
+        local m1 = me:FindFirstChild("Mammoth")
+        if m1 then
+            local m2 = m1:FindFirstChild("Mammoth")
+            if m2 then return true end
+        end
+    end
+
+    -- 结构 2: 万一路径少一层, 直接扫一层子节点兜底
+    for _, child in ipairs(chars:GetChildren()) do
+        if child.Name == LocalPlayer.Name then
+            for _, sub in ipairs(child:GetChildren()) do
+                if sub.Name == "Mammoth" and sub:FindFirstChild("Mammoth") then
+                    return true
+                end
+            end
+        end
+    end
+
+    return false
+end
+
+-- 没开启猛犸就持续按 V, 直到开启为止
+local function CastVUntilMammoth()
+    if IsMammothOn() then
+        Log("猛犸形态已开启, 跳过按V")
+        return true
+    end
+
+    Log("猛犸形态未开启, 开始持续按 %s ...", CFG.SkillKey)
+
+    local deadline = os.clock() + (CFG.TransformTimeout or 60)
+    local attempt = 0
+
+    while os.clock() < deadline do
+        if IsMammothOn() then
+            Log("猛犸形态已开启 (第 %d 次按 %s)", attempt, CFG.SkillKey)
+            return true
+        end
+
+        attempt = attempt + 1
+
+        -- 果实被换掉/掉了就补装备, 否则技能板不存在, 按 V 也没用
+        local char = GetChar()
+        local equipped = char and char:FindFirstChildOfClass("Tool")
+        if not (equipped and equipped.Name == CFG.FruitName) then
+            pcall(EquipMammoth)
+            task.wait(0.3)
+        end
+
+        -- 释放一次 V: 优先点技能板连接, 失败再模拟按键
+        local fired = false
+        local cur = GetChar()
+        local tool = cur and cur:FindFirstChildOfClass("Tool")
+        local board = tool and GetSkillBoard(tool.Name)
+        if board then
+            pcall(function() fired = FireSkillByConnections(CFG.SkillKey) end)
+        end
+        if not fired then
+            pcall(function() fired = FireSkillByKey(CFG.SkillKey) end)
+        end
+
+        -- 给变身动画留出时间, 然后复查
+        task.wait(CFG.SkillRetryInterval or 1)
+    end
+
+    if IsMammothOn() then return true end
+    Log("猛犸形态开启失败 (已按 %d 次 %s), 继续执行", attempt, CFG.SkillKey)
+    return false
+end
+
+--=============================================================
+-- 虚空 M1 循环
+--=============================================================
+local M1Running = false
+local M1Thread = nil
+
+local function FireM1()
+    local char = GetChar()
+    local mammoth = char and char:FindFirstChild(CFG.FruitName)
+    local remote = mammoth and mammoth:FindFirstChild("LeftClickRemote")
+    if not remote then return false end
+    return pcall(function()
+        remote:FireServer(VOID_VECTOR)
+    end)
+end
+
+local function StartM1Loop()
+    if M1Running then return end
+    M1Running = true
+
+    M1Thread = task.spawn(function()
+        Log("虚空M1循环已开启")
+        while M1Running do
+            task.wait(CFG.M1Interval)
+
+            local char = GetChar()
+            if not char then
+                task.wait(0.5)
+                continue
+            end
+
+            -- 果实掉了就重新装备
+            local mammoth = char:FindFirstChild(CFG.FruitName)
+            if not (mammoth and mammoth:FindFirstChild("LeftClickRemote")) then
+                pcall(EquipMammoth)
+                task.wait(0.3)
+                continue
+            end
+
+            FireM1()
+        end
+    end)
+end
+
+local function StopM1Loop()
+    M1Running = false
+    M1Thread = nil
+end
+
+--=============================================================
+-- 自动武装色 (霸气)
+--=============================================================
+-- 判断依据: 角色下存在 HasBuso 或 _BusoLayer1 (取自 y0kaitun.lua:997)
+local function IsHakiOn()
+    local char = GetChar()
+    if not char then return false end
+    if char:FindFirstChild("HasBuso") then return true end
+    if char:FindFirstChild("_BusoLayer1", true) then return true end
+    return false
+end
+
+local function TurnOnHaki()
+    local char = GetChar()
+    if not char then return false end
+    if IsHakiOn() then return false end
+
+    local remotes = ReplicatedStorage:FindFirstChild("Remotes")
+    local commF = remotes and remotes:FindFirstChild("CommF_")
+    if not commF then return false end
+
+    -- InvokeServer("Buso") 开启武装色
+    InvokeRemote(commF, 5, "Buso")
+    return true
+end
+
+local HakiLoopStarted = false
+
+local function StartHakiLoop()
+    if HakiLoopStarted then return end
+    HakiLoopStarted = true
+
+    task.spawn(function()
+        Log("自动武装色已开启: 每 %s 秒检测", tostring(CFG.AutoHakiInterval))
+        while true do
+            task.wait(CFG.AutoHakiInterval)
+            if CFG.AutoHaki then
+                pcall(TurnOnHaki)
+            end
+        end
+    end)
+end
+
+--=============================================================
+-- 自动选阵营
+--=============================================================
+local function JoinTeam()
+    local target = (CFG.Team == "Marines") and "Marines" or "Pirates"
+
+    -- 已经在目标阵营就不用动
+    local ok, myTeam = pcall(function() return LocalPlayer.Team end)
+    if ok and myTeam and myTeam.Name == target then
+        return true
+    end
+
+    -- 方式1: CommF_ 直接设置阵营
+    local remotes = ReplicatedStorage:FindFirstChild("Remotes")
+    local commF = remotes and remotes:FindFirstChild("CommF_")
+    if commF then
+        local done = InvokeRemote(commF, 5, "SetTeam", target)
+        if done then
+            task.wait(0.5)
+            local ok2, team2 = pcall(function() return LocalPlayer.Team end)
+            if ok2 and team2 and team2.Name == target then
+                return true
+            end
+        end
+    end
+
+    -- 方式2: 点选阵营界面 (还没选阵营时会出现)
+    local pg = LocalPlayer:FindFirstChild("PlayerGui")
+    for _, guiName in ipairs({ "Main (minimal)", "Main" }) do
+        local gui = pg and pg:FindFirstChild(guiName)
+        local choose = gui and gui:FindFirstChild("ChooseTeam")
+        local container = choose and choose:FindFirstChild("Container")
+        local side = container and container:FindFirstChild(target)
+        local frame = side and side:FindFirstChild("Frame")
+        local button = frame and frame:FindFirstChild("TextButton")
+        if button then
+            local fired = false
+            if getconnections then
+                local conns = getconnections(button.MouseButton1Down)
+                if conns and #conns > 0 then
+                    for _, conn in ipairs(conns) do
+                        pcall(function() conn:Fire() end)
+                    end
+                    fired = true
+                end
+            end
+            if not fired and firesignal then
+                pcall(function() firesignal(button.MouseButton1Down) end)
+                fired = true
+            end
+            if fired then
+                task.wait(0.8)
+                return true
+            end
+        end
+    end
+
+    return false
+end
+
+-- 在「等待角色加载」之前就把阵营定下来.
+-- 关键: 没选阵营时游戏不会生成角色, 所以必须先选阵营再去等角色, 否则会一直卡住.
+local function EnsureTeam()
+    if not CFG.AutoTeam then return true end
+
+    local target = (CFG.Team == "Marines") and "Marines" or "Pirates"
+
+    -- 先等远程就绪, 远程没好之前发什么都没用
+    local remotes = ReplicatedStorage:FindFirstChild("Remotes")
+    if not remotes then
+        local ok, result = pcall(function()
+            return ReplicatedStorage:WaitForChild("Remotes", 30)
+        end)
+        remotes = ok and result or nil
+    end
+    remotes = remotes or ReplicatedStorage:FindFirstChild("Remotes")
+    local commF = remotes and remotes:FindFirstChild("CommF_")
+    if not commF and remotes then
+        local ok, result = pcall(function()
+            return remotes:WaitForChild("CommF_", 30)
+        end)
+        commF = ok and result or nil
+    end
+    if not commF then
+        Log("阵营设置失败: CommF_ 未就绪, 继续执行")
+        return false
+    end
+
+    Log("正在加入阵营: %s ...", target)
+    for i = 1, 40 do
+        -- 每轮先看当前阵营, 已经对了就直接过
+        local ok, team = pcall(function() return LocalPlayer.Team end)
+        if ok and team and team.Name == target then
+            Log("阵营已确认: %s", target)
+            return true
+        end
+
+        InvokeRemote(commF, 5, "SetTeam", target)
+        task.wait(1)
+
+        local ok2, team2 = pcall(function() return LocalPlayer.Team end)
+        if ok2 and team2 and team2.Name == target then
+            Log("阵营已确认: %s", target)
+            return true
+        end
+
+        -- 还没选阵营时, 游戏会弹阵营界面, 用点击兜底
+        if i % 3 == 0 then
+            pcall(JoinTeam)
+        end
+    end
+
+    Log("阵营设置失败 (已重试 40 次), 继续执行")
+    return false
+end
+
+--=============================================================
+-- 换服自动执行
+--=============================================================
+local QUEUE_GUARD_KEY = "MAMMOTH_FLY_AUTOEXEC_JOB"
+local AutoExecArmed = false
+local AutoExecWarned = false
+local AutoExecQueuedFor = nil
+
+local function GetQueueOnTeleport()
+    local env = getgenv and getgenv() or _G
+    local fn = env and rawget(env, "queue_on_teleport")
+    if type(fn) ~= "function" then
+        fn = env and rawget(env, "queueonteleport")
+    end
+    if type(fn) ~= "function" and syn then fn = syn.queue_on_teleport end
+    if type(fn) ~= "function" and fluxus then fn = fluxus.queue_on_teleport end
+    return type(fn) == "function" and fn or nil
+end
+
+-- 取得要注入的源码: 固定为 HttpGet 加载器
+local function GetHopSource()
+    return src
+end
+
+-- 防重复: 同一个 JobId 只自动执行一次
+-- 同时把阵营偏好带过去, 新服里 getgenv().Team 依然是同一个阵营
+local function BuildPayload(code)
+    return table.concat({
+        "-- Mammoth auto-exec payload",
+        "task.spawn(function()",
+        "    repeat task.wait(1) until game:IsLoaded()",
+        "    task.wait(2)",
+        string.format("    if getgenv().%s == game.JobId then return end", QUEUE_GUARD_KEY),
+        string.format("    getgenv().%s = game.JobId", QUEUE_GUARD_KEY),
+        string.format("    getgenv().Team = %q", CFG.Team),
+        string.format("    getgenv().hop = %q", CFG.HopMethod),
+        "    local src = [==[",
+        code,
+        "]==]",
+        "    local ok, err = pcall(function() loadstring(src)() end)",
+        '    if not ok then warn("[Mammoth auto-exec] " .. tostring(err)) end',
+        "end)",
+        SRC_TERMINATOR,
+    }, "\n")
+end
+
+local function SetupAutoExec()
+    if not CFG.AutoExec then return false end
+    if AutoExecQueuedFor == game.JobId then return true end
+
+    local queueFn = GetQueueOnTeleport()
+    if not queueFn then
+        if not AutoExecWarned then
+            AutoExecWarned = true
+            Log("换服自动执行: 执行器不支持 queue_on_teleport, 已跳过")
+        end
+        return false
+    end
+
+    local code = GetHopSource()
+    if not code or not code:find("%S") then
+        if not AutoExecWarned then
+            AutoExecWarned = true
+            Log("换服自动执行: 源码为空, 已跳过")
+        end
+        return false
+    end
+
+    -- 写入工作目录, 方便排查到底排队了什么
+    if writefile then
+        pcall(function()
+            if makefolder and isfolder and not isfolder("mammoth") then
+                makefolder("mammoth")
+            end
+            writefile("mammoth/src.lua", code)
+        end)
+    end
+
+    local ok = pcall(queueFn, BuildPayload(code))
+    if ok then
+        AutoExecArmed = true
+        AutoExecQueuedFor = game.JobId
+        Log("换服自动执行已排队: %s", CFG.AutoExecUrl)
+    else
+        Log("换服自动执行排队失败")
+    end
+    return ok
+end
+
+--=============================================================
+-- 自动 V3 / V4 (种族技能)
+--=============================================================
+-- V3: CommE:FireServer("ActivateAbility")
+local function TurnOnV3()
+    local char = GetChar()
+    if not char then return false end
+
+    -- 已经变身就别重复发
+    local transformed = char:FindFirstChild("RaceTransformed")
+    if transformed and transformed.Value then return false end
+
+    local remotes = ReplicatedStorage:FindFirstChild("Remotes")
+    local commE = remotes and remotes:FindFirstChild("CommE")
+    if not commE then return false end
+
+    return pcall(function() commE:FireServer("ActivateAbility") end)
+end
+
+-- V4: Awakening.RemoteFunction:InvokeServer(true)
+local function TurnOnV4()
+    local char = GetChar()
+    if not char then return false end
+
+    local energy      = char:FindFirstChild("RaceEnergy")
+    local transformed = char:FindFirstChild("RaceTransformed")
+    -- 能量不足 / 已在觉醒状态 都跳过
+    if not energy or tonumber(energy.Value) == nil or energy.Value < 1 then return false end
+    if not transformed or transformed.Value then return false end
+
+    local awakening = char:FindFirstChild("Awakening")
+    if not awakening then
+        local backpack = LocalPlayer:FindFirstChild("Backpack")
+        awakening = backpack and backpack:FindFirstChild("Awakening")
+    end
+    if not awakening then return false end
+
+    local remote = awakening:FindFirstChild("RemoteFunction")
+    if not remote then return false end
+
+    local ok = pcall(function() remote:InvokeServer(true) end)
+    if not ok then
+        -- 有些版本要传 table
+        ok = pcall(function() remote:InvokeServer({ true }) end)
+    end
+    return ok
+end
+
+local AbilityLoopStarted = false
+
+local function StartAbilityLoop()
+    if AbilityLoopStarted then return end
+    AbilityLoopStarted = true
+
+    task.spawn(function()
+        Log("自动V3已开启: 每 %s 秒检测", tostring(CFG.V3Interval))
+        while true do
+            task.wait(CFG.V3Interval)
+            if CFG.AutoV3 then
+                pcall(TurnOnV3)
+            end
+        end
+    end)
+
+    task.spawn(function()
+        Log("自动V4已开启: 每 %s 秒检测", tostring(CFG.V4Interval))
+        while true do
+            task.wait(CFG.V4Interval)
+            if CFG.AutoV4 then
+                pcall(TurnOnV4)
+            end
+        end
+    end)
+end
+
+--=============================================================
+-- 跳服逻辑 (LumuHub 写法: Roblox 公开 API 查服 + 历史去重)
+--=============================================================
+local Hopping = false
+local Fetching = false
+
+if not _G.JumpHistory then _G.JumpHistory = {} end
+
+-- https://games.roblox.com/v1/games/<placeId>/servers/Public
+local function FetchServerList()
+    local url = "https://games.roblox.com/v1/games/" .. game.PlaceId
+        .. "/servers/Public?sortOrder=Desc&excludeFullGames=true&limit=100"
+    local ok, res = pcall(function()
+        return HttpService:JSONDecode(game:HttpGet(url))
+    end)
+    if ok and type(res) == "table" and type(res.data) == "table" then
+        return res.data
+    end
+    return nil
+end
+
+-- 方式B: 游戏内 __ServerBrowser 远程, 翻页拉取
+-- 返回 { [jobId] = { Region=, Count=, Bounty= } }
+local function FetchServerListRemote(timeout)
+    local browser = ReplicatedStorage:FindFirstChild("__ServerBrowser")
+        or SafeWait(ReplicatedStorage, "__ServerBrowser", 10)
+    if not browser then return nil end
+
+    local servers = {}
+    local pending = 0
+    for page = 1, 100 do
+        pending = pending + 1
+        task.delay(page * 0.02, function()
+            local ok, result = pcall(function()
+                return browser:InvokeServer(page)
+            end)
+            if not ok then
+                local tries = 0
+                repeat
+                    task.wait(0.5)
+                    tries = tries + 1
+                    ok, result = pcall(function()
+                        return browser:InvokeServer(page)
+                    end)
+                until ok or tries >= 2
+            end
+            if ok and type(result) == "table" then
+                for job, info in pairs(result) do
+                    if type(info) == "table" then
+                        servers[job] = {
+                            Region = tostring(info.Region or "Unknown"),
+                            Count  = tonumber(info.Count) or 0,
+                            Bounty = tonumber(info.Bounty) or 0,
+                        }
+                    end
+                end
+            end
+            pending = pending - 1
+        end)
+    end
+
+    local deadline = os.clock() + (timeout or 20)
+    while pending > 0 and os.clock() < deadline do
+        task.wait(0.1)
+    end
+    if next(servers) == nil then return nil end
+    return servers
+end
+
+-- API 方式挑服: 优先 >=HopPreferredPlayers 人, 退到 >=HopMinPlayers
+local function PickServer(servers)
+    if type(servers) ~= "table" then return nil end
+    local function scan(minPlayers)
+        for _, s in ipairs(servers) do
+            local id = s.id and tostring(s.id)
+            local playing = tonumber(s.playing) or 0
+            local maxPlayers = tonumber(s.maxPlayers) or 12
+            if id and id ~= game.JobId
+                and not table.find(_G.JumpHistory, id)
+                and playing >= minPlayers
+                and playing < maxPlayers then
+                return id, playing
+            end
+        end
+        return nil
+    end
+    local id, playing = scan(CFG.HopPreferredPlayers)
+    if id then return id, playing end
+    return scan(CFG.HopMinPlayers)
+end
+
+-- remote 方式挑服: 多两档过滤 (人数范围 / 赏金范围)
+local function PickServerRemote(servers)
+    if type(servers) ~= "table" then return nil end
+    local matches = {}
+    for job, info in pairs(servers) do
+        local count  = tonumber(info.Count) or 0
+        local bounty = tonumber(info.Bounty) or 0
+        if job ~= game.JobId
+            and not table.find(_G.JumpHistory, job)
+            and count >= CFG.HopMinPlayers and count <= CFG.HopMaxPlayers
+            and bounty >= CFG.HopMinBounty and bounty <= CFG.HopMaxBounty then
+            table.insert(matches, {
+                Job    = job,
+                Region = info.Region,
+                Count  = count,
+                Bounty = bounty,
+            })
+        end
+    end
+    if #matches == 0 then return nil end
+    local pick = matches[math.random(1, #matches)]
+    return pick.Job, pick.Count
+end
+
+-- 传送: 主方式 __ServerBrowser, 兜底 TeleportToPlaceInstance
+local function TeleportToJob(jobId)
+    local remote = ReplicatedStorage:FindFirstChild("__ServerBrowser")
+        or SafeWait(ReplicatedStorage, "__ServerBrowser", 3)
+    if remote then
+        local done = InvokeRemote(remote, 8, "teleport", jobId)
+        if done then return true, "browser" end
+    end
+    local ok, err = pcall(function()
+        TeleportService:TeleportToPlaceInstance(game.PlaceId, jobId, LocalPlayer)
+    end)
+    if ok then return true, "teleport" end
+    return false, tostring(err)
+end
+
+local function DoServerHop()
+    if Hopping then return false end
+    Hopping = true
+
+    -- 按 getgenv().hop 选择查服方式
+    local useRemote = (CFG.HopMethod == "remote")
+    local servers, target, playing
+
+    if useRemote then
+        servers = FetchServerListRemote()
+        if not servers then
+            Log("跳服[remote]: 未取到服务器列表")
+            Hopping = false
+            return false
+        end
+        target, playing = PickServerRemote(servers)
+        if not target then
+            _G.JumpHistory = {}
+            target, playing = PickServerRemote(servers)
+        end
+    else
+        servers = FetchServerList()
+        if not servers then
+            Log("跳服[api]: 未取到服务器列表")
+            Hopping = false
+            return false
+        end
+        target, playing = PickServer(servers)
+        if not target then
+            _G.JumpHistory = {}
+            target, playing = PickServer(servers)
+        end
+    end
+
+    if not target then
+        Log("跳服[%s]: 没有找到可用的服务器", CFG.HopMethod)
+        Hopping = false
+        return false
+    end
+
+    table.insert(_G.JumpHistory, target)
+    if #_G.JumpHistory > 100 then table.remove(_G.JumpHistory, 1) end
+
+    Log("匹配到服务器[%s]: %s (人数 %s)", CFG.HopMethod, target, tostring(playing))
+
+    -- 跳服前先收手, 避免在新服残留状态
+    StopM1Loop()
+    StopNoclip()
+    StopFly()
+
+    -- 跳服通知 (传送前发, 确保请求来得及完成)
+    pcall(function()
+        SendServerHopWebhook({
+            TotalEarned   = SessionStats.Earned,
+            TotalKills    = SessionStats.Kills,
+            CurrentBounty = GetMyBounty(),
+            Region        = "Unknown",
+            Method        = tostring(CFG.HopMethod),
+            Target        = target,
+        })
+    end)
+
+    -- 补排一次, 保证新服里也备着 payload
+    pcall(SetupAutoExec)
+
+    local ok, method = TeleportToJob(target)
+    if not ok then
+        Log("跳服失败: %s", tostring(method))
+        Hopping = false
+        return false
+    end
+
+    Log("已发送跳服请求 (%s)", tostring(method))
+
+    -- 重置本服统计 (新服重新计算)
+    SessionStats.Kills = 0
+    SessionStats.Earned = 0
+    SessionStats.JoinedAt = os.clock()
+    SessionStats.LastVictim = nil
+
+    task.wait(0.5)
+
+    Hopping = false
+    return true
+end
+
+--=============================================================
+-- 战斗状态判断 (取自 autobounty.lua 的 InCombat 写法)
+--=============================================================
+-- 主判据: PlayerGui.Main.BottomHUDList.InCombat 的可见性与文字
+--   "BountyAtRisk"   战斗中且赏金受威胁 -> 绝不能跳
+--   "InCombatNoRisk" 战斗中但赏金无风险 -> 可以跳
+--   "NotInCombat"    不在战斗
+local function GetCombatStatus()
+    local pg = LocalPlayer:FindFirstChild("PlayerGui")
+    local mainUI = pg and pg:FindFirstChild("Main")
+    local bottomHUD = mainUI and mainUI:FindFirstChild("BottomHUDList")
+    local inCombatUI = bottomHUD and bottomHUD:FindFirstChild("InCombat")
+
+    if inCombatUI and inCombatUI.Visible then
+        local rawText = ""
+        if inCombatUI:IsA("TextLabel") then
+            rawText = inCombatUI.Text
+        else
+            local childText = inCombatUI:FindFirstChildWhichIsA("TextLabel", true)
+            if childText then rawText = childText.Text end
+        end
+
+        local lowerText = string.lower(rawText)
+        if string.find(lowerText, "bounty at risk")
+            or string.find(lowerText, "bounty")
+            or string.find(lowerText, "賞金") then
+            return "BountyAtRisk"
+        else
+            return "InCombatNoRisk"
+        end
+    end
+    return "NotInCombat"
+end
+
+-- 赏金受威胁: 这时绝不能跳服, 必须等威胁解除
+local function IsBountyAtRisk()
+    if not CFG.NoHopInCombat then return false end
+    local ok, status = pcall(GetCombatStatus)
+    return ok and status == "BountyAtRisk"
+end
+
+--=============================================================
+-- 跳服循环: 落地后先跑 HopInterval 秒, 然后每 HopRetryInterval 秒
+-- 重试直到跳成功; 跳成功后再重新计时
+-- 战斗中不跳服: 每轮检测, 战斗状态消失才继续
+--=============================================================
+local HopLoopStarted = false
+
+local function StartHopLoop()
+    if HopLoopStarted then return end
+    HopLoopStarted = true
+
+    task.spawn(function()
+        Log("自动跳服已开启: 每轮先跑 %s 秒, 之后每 %s 秒重试一次 (查服方式: %s)",
+            tostring(CFG.HopInterval), tostring(CFG.HopRetryInterval), tostring(CFG.HopMethod))
+
+        local lastJob = game.JobId
+        local combatWarned = false
+
+        while true do
+            -- 第一段: 在当前服待满 HopInterval 秒
+            task.wait(CFG.HopInterval)
+
+            -- 第二段: 反复尝试, 直到真的换到新服为止
+            while game.JobId == lastJob do
+                -- 战斗中绝不跳服: 等战斗状态消失再继续
+                if IsBountyAtRisk() then
+                    if not combatWarned then
+                        combatWarned = true
+                        Log("战斗中(赏金受威胁), 暂停跳服, 等战斗结束...")
+                    end
+                    task.wait(CFG.HopRetryInterval)
+                    continue
+                end
+
+                if combatWarned then
+                    combatWarned = false
+                    Log("战斗已结束, 恢复跳服")
+                end
+
+                local hum = GetHum()
+                local hrp = GetHRP()
+                if hum and hrp and hum.Health > 0 then
+                    pcall(DoServerHop)
+                end
+                task.wait(CFG.HopRetryInterval)
+            end
+
+            lastJob = game.JobId
+            combatWarned = false
+            Log("已换服, 重新计时 %s 秒", tostring(CFG.HopInterval))
+        end
+    end)
+end
+
+--=============================================================
+-- 主体流程: 装备 -> 上飞 -> V -> M1 循环 -> 定时跳服
+--=============================================================
+local Initialized = false
+
+local function RunOnce()
+    Log("等待角色加载...")
+    local char = GetChar()
+    if not char then
+        local ok = pcall(function()
+            char = LocalPlayer.CharacterAdded:Wait()
+        end)
+        if not ok or not char then return end
+    end
+    task.wait(1)
+
+    -- 1) 装备猛犸
+    Log("正在装备 %s ...", CFG.FruitName)
+    local mammoth = nil
+    for _ = 1, 15 do
+        pcall(EquipMammoth)
+        mammoth = WaitForMammoth(2)
+        if mammoth then break end
+    end
+    if mammoth then
+        Log("已装备 %s", CFG.FruitName)
+    else
+        Log("警告: 未检测到 %s, 仍继续执行", CFG.FruitName)
+    end
+
+    -- 2) 以 300 studs/s 往上飞
+    StartFly()
+
+    -- 3) 穿墙
+    if CFG.Noclip then
+        StartNoclip()
+    end
+
+    -- 4) 判断是否开启猛犸, 没开启就持续按 V 直到开启
+    task.wait(0.6)
+    CastVUntilMammoth()
+
+    -- 5) 循环虚空 M1
+    StartM1Loop()
+
+    -- 6) 自动 V3 / V4 (全局只保留一套循环, 换服后自动跟随新角色)
+    StartAbilityLoop()
+
+    -- 6.5) 自动武装色
+    StartHakiLoop()
+
+    -- 7) 定时跳服 (顶层自循环: 跑满间隔后每 5 秒重试直到跳成功)
+    StartHopLoop()
+end
+
+local function Init()
+    if Initialized then return end
+    Initialized = true
+
+    -- 同一服务器内只跑一次 (自动执行可能把脚本重灌进来)
+    local env = getgenv and getgenv() or _G
+    if env then
+        if env.__MAMMOTH_FLY_RUNNING == game.JobId then
+            Log("本服务器已初始化过, 跳过重复执行")
+            return
+        end
+        env.__MAMMOTH_FLY_RUNNING = game.JobId
+    end
+
+    -- 加载即排队, 这样手动换服/游戏内换服也能自动重跑
+    SetupAutoExec()
+
+    -- Webhook: 启动通知 (后台发送, 不阻塞) + 击杀/赏金追踪
+    task.spawn(function()
+        pcall(SendStartWebhook)
+    end)
+    pcall(StartKillTracking)
+
+    -- 必须最先做: 没选阵营时游戏不会生成角色, 后面所有等待角色的逻辑都会卡死
+    if CFG.AutoTeam then
+        Log("目标阵营: %s (来自 getgenv().Team)", tostring(CFG.Team))
+        pcall(EnsureTeam)
+    end
+
+    RunOnce()
+end
+
+-- 角色重生 (含跳服换服) 后重新走一遍流程
+LocalPlayer.CharacterAdded:Connect(function()
+    if not Initialized then return end
+    StopNoclip()
+    StopFly()
+    StopM1Loop()
+    task.wait(2)
+    task.spawn(RunOnce)
+end)
+
+Init()
