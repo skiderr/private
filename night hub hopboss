@@ -1,7 +1,3 @@
--- Deobfuscated by ccjvwsod on Discord
--- Detected obfuscation: Luraph v15
--- Local names are inferred from use (the original names are not in the bytecode)
-
 repeat
 	wait()
 until game:IsLoaded()
@@ -106,6 +102,8 @@ local tbl11 = {
 		["Auto Buso"] = true,
 		["Enable Fast Attack"] = true,
 		["Select Theme"] = "Dark",
+		["Dragonstorm Aura"] = false,
+		["Dragonstorm Range"] = 500,
 	},
 }
 
@@ -153,7 +151,7 @@ local band = bit32.band
 local lshift = bit32.lshift
 local rshift = bit32.rshift
 local lrotate = bit32.lrotate
-local str3 = "NIGHTHUB|"
+local str3 = "YOJANHUB|"
 local n = 8
 local n2 = 4
 local n3 = 4294967296
@@ -1262,8 +1260,8 @@ end
 tbl10.CreateWindow = function()
 	local ok, result = pcall(function()
 		return v:CreateWindow({
-			Title = "Night Hub Hop Boss " .. (tbl8.IsPremiumUser and "<font color='rgb(255,255,0)'>[PREMIUM]</font>" or "[FREEMIUM]"),
-			SubTitle = "by @_luongminhnghia",
+			Title = "Yojan Hub Hop Boss " .. (tbl8.IsPremiumUser and "<font color='rgb(255,255,0)'>[PREMIUM]</font>" or "[FREEMIUM]"),
+			SubTitle = "by @notlorixx",
 			TabWidth = 145,
 			Size = userInputService.TouchEnabled and UDim2.fromOffset(450, 400) or UDim2.fromOffset(550, 450),
 			Acrylic = false,
@@ -1690,6 +1688,25 @@ tbl10.StartingUI = function()
 			{ "Toggle", { Title = "Auto True Triple Katana" } },
 			{ "Seperator", { Title = "Race" } },
 			{ "Toggle", { Title = "Auto Ghoul" } },
+			{ "Seperator", { Title = "Dragonstorm" } },
+			{
+				"Toggle",
+				{
+					Title = "Dragonstorm Aura",
+					Desc = "Auto-fires Dragonstorm sword attacks at nearby enemies (requires Dragonstorm equipped)",
+				},
+			},
+			{
+				"Slider",
+				{
+					Title = "Dragonstorm Range",
+					Desc = "Max distance to hit enemies",
+					Min = 50,
+					Max = 2000,
+					Default = 500,
+					Rounding = 10,
+				},
+			},
 		},
 		Webhook = {
 			{
@@ -1744,6 +1761,192 @@ tbl10.StartingUI = function()
 	print("[UI]", "Started UI!")
 end
 
+-- ============================================================
+-- DRAGONSTORM AURA IMPLEMENTATION
+-- ============================================================
+local Dragonstorm = {
+	Fn = nil,
+	Slots = nil,
+	V9 = nil,   -- remote on Net (RP.r5f6)
+	V10 = nil,  -- remote on Remotes (RP.n9e4)
+	Ready = false,
+}
+
+-- These are the exact remote names used by Dragonstorm hit registration.
+-- If the game updates them, change these two strings.
+local function initDragonstorm()
+	if Dragonstorm.Ready then return true end
+
+	-- Try to locate the remotes. The script's own tbl.RP is not present
+	-- here, so we search heuristically.
+	local remotesFolder = replicatedStorage:FindFirstChild("Remotes")
+
+	if not Dragonstorm.V9 then
+		-- V9 lives directly under Modules.Net
+		-- Common names: "RE/RegisterHit2", "RE/RegisterAttack2", etc.
+		-- We pick the RemoteEvent on Net that isn't the two we already know.
+		for _, child in ipairs(net:GetChildren()) do
+			if child:IsA("RemoteEvent")
+				and child ~= reRegisterAttack
+				and child ~= reRegisterHit
+				and child.Name:find("RegisterHit")
+			then
+				Dragonstorm.V9 = child
+				break
+			end
+		end
+	end
+
+	if not Dragonstorm.V10 and remotesFolder then
+		-- V10 lives under Remotes
+		for _, child in ipairs(remotesFolder:GetChildren()) do
+			if child:IsA("RemoteEvent") and child.Name:find("RegisterHit") then
+				Dragonstorm.V10 = child
+				break
+			end
+		end
+	end
+
+	if not Dragonstorm.V9 or not Dragonstorm.V10 then
+		return false
+	end
+
+	-- Find the CombatController.Attack upvalue that holds the seed function
+	local ok = pcall(function()
+		local cc = require(replicatedStorage:WaitForChild("Controllers"):WaitForChild("CombatController"))
+
+		for _, up in ipairs(debug.getupvalues(cc.Attack)) do
+			if type(up) == "function" then
+				for i, v in ipairs(debug.getupvalues(up)) do
+					if v == 727595 then
+						Dragonstorm.Fn = up
+						Dragonstorm.Slots = {
+							u25 = i - 3,
+							u21 = i - 2,
+							u24 = i - 1,
+							u20 = i,
+							u22 = i + 1,
+							u23 = i + 2,
+							u26 = i + 3,
+						}
+						return
+					end
+				end
+			end
+		end
+	end)
+
+	if ok and Dragonstorm.Fn then
+		Dragonstorm.Ready = true
+		print("[Dragonstorm] Initialized")
+		return true
+	end
+
+	return false
+end
+
+local function fireDragonstorm(targetPart, targetPos)
+	if not Dragonstorm.Ready then return end
+
+	local fnD  = Dragonstorm.Fn
+	local u20 = debug.getupvalue(fnD, Dragonstorm.Slots.u20)
+	local u21 = debug.getupvalue(fnD, Dragonstorm.Slots.u21)
+	local u22 = debug.getupvalue(fnD, Dragonstorm.Slots.u22)
+	local u23 = debug.getupvalue(fnD, Dragonstorm.Slots.u23)
+	local u24 = debug.getupvalue(fnD, Dragonstorm.Slots.u24)
+	local u25 = debug.getupvalue(fnD, Dragonstorm.Slots.u25)
+	local u26 = debug.getupvalue(fnD, Dragonstorm.Slots.u26)
+
+	local seedN = ((u24 * u21 + u25 * u20) % u22 * u22 + u25 * u21) % u23
+	local n2    = math.floor(seedN / u22)
+	local n3    = seedN - n2 * u22
+	local n4    = u26 + 1
+
+	debug.setupvalue(fnD, Dragonstorm.Slots.u24, n2)
+	debug.setupvalue(fnD, Dragonstorm.Slots.u25, n3)
+	debug.setupvalue(fnD, Dragonstorm.Slots.u26, n4)
+
+	Dragonstorm.V10:FireServer(math.floor(seedN / u23 * 16777215), n4)
+	Dragonstorm.V9:FireServer(targetPos, { targetPart })
+end
+
+local DRAGON_BODY_PARTS = {
+	"Head", "UpperTorso", "LowerTorso",
+	"LeftUpperArm", "RightUpperArm", "LeftLowerArm", "RightLowerArm",
+	"LeftUpperLeg", "RightUpperLeg", "LeftLowerLeg", "RightLowerLeg",
+}
+
+local function pickDragonBodyPart(model)
+	if not model then return nil end
+	local parts = {}
+	for _, n4 in ipairs(DRAGON_BODY_PARTS) do
+		local p = model:FindFirstChild(n4)
+		if p and p:IsA("BasePart") then parts[#parts + 1] = p end
+	end
+	if #parts == 0 then return model:FindFirstChild("HumanoidRootPart") end
+	return parts[math.random(1, #parts)]
+end
+
+local function findDragonTarget()
+	local character = localPlayer.Character
+	if not character then return nil end
+	local hrp = character:FindFirstChild("HumanoidRootPart")
+	if not hrp then return nil end
+
+	local range = tonumber(tbl["Dragonstorm Range"]) or 500
+	local bestPart, bestDist = nil, range
+
+	-- NPCs / enemies
+	for _, mob in ipairs(enemies:GetChildren()) do
+		if tbl9.IsAlive(mob) then
+			local mHrp = mob:FindFirstChild("HumanoidRootPart")
+			if mHrp then
+				local d = (mHrp.Position - hrp.Position).Magnitude
+				if d < bestDist then
+					bestDist = d
+					bestPart = mHrp
+				end
+			end
+		end
+	end
+
+	-- SeaBeasts
+	local seaBeasts = workspace:FindFirstChild("SeaBeasts")
+	if seaBeasts then
+		for _, sb in ipairs(seaBeasts:GetChildren()) do
+			local sbHrp = sb:FindFirstChild("HumanoidRootPart")
+			local hp = sb:FindFirstChild("Health")
+			if sbHrp and hp and hp:IsA("ValueBase") and hp.Value > 0 then
+				local d = (sbHrp.Position - hrp.Position).Magnitude
+				if d < bestDist then
+					bestDist = d
+					bestPart = sbHrp
+				end
+			end
+		end
+	end
+
+	-- Other players (respecting PvP)
+	for _, player in ipairs(players:GetPlayers()) do
+		if player ~= localPlayer and player.Character then
+			local pHrp = player.Character:FindFirstChild("HumanoidRootPart")
+			local pHum = player.Character:FindFirstChildOfClass("Humanoid")
+			if pHrp and pHum and pHum.Health > 0 then
+				local pvpOff = player:GetAttribute("PvpDisabled")
+				if pvpOff ~= true then
+					local d = (pHrp.Position - hrp.Position).Magnitude
+					if d < bestDist then
+						bestDist = d
+						bestPart = pHrp
+					end
+				end
+			end
+		end
+	end
+
+	return bestPart
+end
+
 tbl3.LoadFuncs = function()
 	tbl3.Funcs = {
 		["Auto Buso"] = function()
@@ -1753,6 +1956,29 @@ tbl3.LoadFuncs = function()
 			end
 		end,
 		["Enable Fast Attack"] = fn27,
+		-- ========================================================
+		-- Dragonstorm Aura
+		-- ========================================================
+		["Dragonstorm Aura"] = function()
+			if not Dragonstorm.Ready then
+				if not initDragonstorm() then
+					wait(2)
+					return
+				end
+			end
+
+			local character = localPlayer.Character
+			if not character then return end
+
+			local tool = character:FindFirstChildOfClass("Tool")
+			if not tool or tool.Name ~= "Dragonstorm" then return end
+
+			local targetHrp = findDragonTarget()
+			if not targetHrp then return end
+
+			local part = pickDragonBodyPart(targetHrp.Parent) or targetHrp
+			fireDragonstorm(part, part.Position)
+		end,
 		["Start Farm Boss"] = function()
 			if tbl["Select Boss"] == nil or tbl["Select Boss"] == "" then
 				return
