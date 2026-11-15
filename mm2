@@ -13,7 +13,7 @@ local Lighting = game:GetService("Lighting")
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 
-local ConfigFileName = "SynHub_MM2_Config.json"
+local ConfigFileName = "YojanHub_MM2_Config.json"
 local CustomSoundId = "rbxassetid://4499400560"
 
 local DefaultConfig = {
@@ -362,23 +362,23 @@ local antiSilentAimData = {
     savedVelocity = nil
 }
 
-if _G.SynHubLoaded then
-    if CoreGui:FindFirstChild("SynHubMain") then CoreGui.SynHubMain:Destroy() end
+if _G.YojanHubLoaded then
+    if CoreGui:FindFirstChild("YojanHubMain") then CoreGui.YojanHubMain:Destroy() end
     if CoreGui:FindFirstChild("ShootGui_Overlay_V19") then CoreGui.ShootGui_Overlay_V19:Destroy() end
-    if CoreGui:FindFirstChild("SynRoleAlert") then CoreGui.SynRoleAlert:Destroy() end
-    if CoreGui:FindFirstChild("SynTracersGui") then CoreGui.SynTracersGui:Destroy() end
-    if CoreGui:FindFirstChild("SynNotifyContainer") then CoreGui.SynNotifyContainer:Destroy() end
-    if CoreGui:FindFirstChild("SynGrabGunBtn") then CoreGui.SynGrabGunBtn:Destroy() end
-    if CoreGui:FindFirstChild("SynInvisBtn") then CoreGui.SynInvisBtn:Destroy() end
-    if CoreGui:FindFirstChild("SynDesyncBtn") then CoreGui.SynDesyncBtn:Destroy() end
-    if CoreGui:FindFirstChild("SynFlingBtn") then CoreGui.SynFlingBtn:Destroy() end
-    if CoreGui:FindFirstChild("SynFlingSheriffBtn") then CoreGui.SynFlingSheriffBtn:Destroy() end
-    if CoreGui:FindFirstChild("SynFlingMurdererBtn") then CoreGui.SynFlingMurdererBtn:Destroy() end
-    if CoreGui:FindFirstChild("SynFlingHeroBtn") then CoreGui.SynFlingHeroBtn:Destroy() end
-    if CoreGui:FindFirstChild("SynRoundTimer") then CoreGui.SynRoundTimer:Destroy() end
-    if Lighting:FindFirstChild("SynMenuBlur") then Lighting.SynMenuBlur:Destroy() end
+    if CoreGui:FindFirstChild("YojanRoleAlert") then CoreGui.YojanRoleAlert:Destroy() end
+    if CoreGui:FindFirstChild("YojanTracersGui") then CoreGui.YojanTracersGui:Destroy() end
+    if CoreGui:FindFirstChild("YojanNotifyContainer") then CoreGui.YojanNotifyContainer:Destroy() end
+    if CoreGui:FindFirstChild("YojanGrabGunBtn") then CoreGui.YojanGrabGunBtn:Destroy() end
+    if CoreGui:FindFirstChild("YojanInvisBtn") then CoreGui.YojanInvisBtn:Destroy() end
+    if CoreGui:FindFirstChild("YojanDesyncBtn") then CoreGui.YojanDesyncBtn:Destroy() end
+    if CoreGui:FindFirstChild("YojanFlingBtn") then CoreGui.YojanFlingBtn:Destroy() end
+    if CoreGui:FindFirstChild("YojanFlingSheriffBtn") then CoreGui.YojanFlingSheriffBtn:Destroy() end
+    if CoreGui:FindFirstChild("YojanFlingMurdererBtn") then CoreGui.YojanFlingMurdererBtn:Destroy() end
+    if CoreGui:FindFirstChild("YojanFlingHeroBtn") then CoreGui.YojanFlingHeroBtn:Destroy() end
+    if CoreGui:FindFirstChild("YojanRoundTimer") then CoreGui.YojanRoundTimer:Destroy() end
+    if Lighting:FindFirstChild("YojanMenuBlur") then Lighting.YojanMenuBlur:Destroy() end
 end
-_G.SynHubLoaded = true
+_G.YojanHubLoaded = true
 
 local function AddCorner(instance, radius) 
     local corner = Instance.new("UICorner")
@@ -423,7 +423,7 @@ end
 
 -- The frosted-glass blur that sits behind the whole menu.
 local MenuBlur = Instance.new("BlurEffect")
-MenuBlur.Name = "SynMenuBlur"
+MenuBlur.Name = "YojanMenuBlur"
 MenuBlur.Size = 0
 MenuBlur.Enabled = true
 MenuBlur.Parent = Lighting
@@ -494,7 +494,7 @@ end)
 local function PlayClickSound()
     task.spawn(function()
         local s = Instance.new("Sound")
-        s.Name = "SynClickSound"
+        s.Name = "YojanClickSound"
         s.SoundId = CustomSoundId
         s.Volume = 1
         s.Parent = CoreGui
@@ -506,7 +506,7 @@ local function PlayClickSound()
 end
 
 -- Sound IDs taken from rayz.txt's gun-drop sound, reused for the Murderer alert.
-SynMurdererSounds = {
+YojanMurdererSounds = {
     Discord = "rbxassetid://1076907875",
     ["Fire alarm"] = "rbxassetid://497153454",
     Oof = "rbxassetid://79348298352567",
@@ -524,11 +524,11 @@ function PlayMurdererSound()
         if Config.MurdererSoundName == "Custom" then
             id = Config.MurdererSoundCustom
         else
-            id = SynMurdererSounds[Config.MurdererSoundName]
+            id = YojanMurdererSounds[Config.MurdererSoundName]
         end
         if not id or id == "" then return end
         local s = Instance.new("Sound")
-        s.Name = "SynMurdererSound"
+        s.Name = "YojanMurdererSound"
         s.SoundId = id
         s.Volume = (Config.MurdererSoundVolume or 100) / 100
         s.Parent = CoreGui
@@ -547,12 +547,12 @@ function ApplyXRay(on)
 end
 
 -- rayz u112: our character, waiting for it if needed.
-function SynGetCharacter()
+function YojanGetCharacter()
     return LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
 end
 
 -- rayz u113: find the current game map model (has "Spawns", not the lobby).
-function SynGetGameMap()
+function YojanGetGameMap()
     for _, child in ipairs(Workspace:GetChildren()) do
         if child:IsA("Model") and child:FindFirstChild("Spawns") and not child.Name:lower():find("lobby") then
             for _, d in ipairs(child:GetDescendants()) do
@@ -850,7 +850,7 @@ local function ApplyThemeToGUI()
     
     if NotifyContainer then
         for _, notify in ipairs(NotifyContainer:GetDescendants()) do
-            if notify:IsA("TextLabel") and notify.Text == "SYN HUB" then
+            if notify:IsA("TextLabel") and notify.Text == "YOJAN HUB" then
                 notify.TextColor3 = Theme.Accent
             elseif notify:IsA("Frame") and notify:FindFirstChildOfClass("UIStroke") then
                 notify.BackgroundColor3 = Theme.Sidebar
@@ -983,7 +983,7 @@ end
 local function ApplyShowRoundTimer(state)
     if state then
         roundTimerGui = Instance.new("ScreenGui")
-        roundTimerGui.Name = "SynRoundTimer"
+        roundTimerGui.Name = "YojanRoundTimer"
         roundTimerGui.Parent = CoreGui
         roundTimerGui.IgnoreGuiInset = true
         roundTimerGui.ResetOnSpawn = false
@@ -1039,7 +1039,7 @@ local function ApplyShowRoundTimer(state)
 end
 
 local NotifyContainer = Instance.new("ScreenGui")
-NotifyContainer.Name = "SynNotifyContainer"
+NotifyContainer.Name = "YojanNotifyContainer"
 NotifyContainer.Parent = CoreGui
 NotifyContainer.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 NotifyContainer.IgnoreGuiInset = true
@@ -1057,7 +1057,7 @@ NotifyLayout.SortOrder = Enum.SortOrder.LayoutOrder
 NotifyLayout.VerticalAlignment = Enum.VerticalAlignment.Top
 NotifyLayout.Padding = UDim.new(0, 8)
 
-local function SynNotify(title, text, duration)
+local function YojanNotify(title, text, duration)
     notifyOrder = notifyOrder - 1
 
     local Frame = Instance.new("Frame")
@@ -1524,7 +1524,7 @@ local function PerformGrabGun()
     -- 1) Gun already dropped on the ground -> pull it straight to us.
     local gunDrop = Workspace:FindFirstChild("GunDrop", true)
     if gunDrop and pullToSelf(gunDrop) then
-        SynNotify("GRAB GUN", "Grabbed the dropped gun!", 2)
+        YojanNotify("GRAB GUN", "Grabbed the dropped gun!", 2)
         return true
     end
 
@@ -1554,7 +1554,7 @@ local function PerformGrabGun()
         return true
     end
 
-    SynNotify("GRAB GUN", "No dropped gun and nobody is holding it.", 3)
+    YojanNotify("GRAB GUN", "No dropped gun and nobody is holding it.", 3)
     return false
 end
 
@@ -1723,12 +1723,12 @@ end
 
 local GrabBtn, InvisBtn, DesyncBtn
 
-GrabFrame, GrabBtn, GrabStroke = MakeFloatingButton("SynGrabGunBtn", "GRAB GUN", 0.5)
+GrabFrame, GrabBtn, GrabStroke = MakeFloatingButton("YojanGrabGunBtn", "GRAB GUN", 0.5)
 ButtonClickGuard(GrabBtn, PerformGrabGun)
 
-InvisFrame, InvisBtn, InvisStroke = MakeFloatingButton("SynInvisBtn", "INVISIBLE", 0.6)
+InvisFrame, InvisBtn, InvisStroke = MakeFloatingButton("YojanInvisBtn", "INVISIBLE", 0.6)
 
-DesyncFrame, DesyncBtn, DesyncStroke = MakeFloatingButton("SynDesyncBtn", "DESYNC", 0.7)
+DesyncFrame, DesyncBtn, DesyncStroke = MakeFloatingButton("YojanDesyncBtn", "DESYNC", 0.7)
 
 -- Fling engine: faithful port of rayz.txt's fling (u140 / u529 / v530). We pin our
 -- own linear velocity with a BodyVelocity (Velocity=0, MaxForce=9e9) so we never get
@@ -1845,7 +1845,7 @@ local function FlingPlayer(targetPlayer)
     -- Non-lethal fling protects falling parts so the target survives (just launched).
     -- Lethal fling (grab-gun) leaves the destroy height alone so the target falls out
     -- of the map, dies and drops the gun.
-    if not getgenv().SynFlingLethal then
+    if not getgenv().YojanFlingLethal then
         workspace.FallenPartsDestroyHeight = 0 / 0
     end
 
@@ -1860,11 +1860,11 @@ local function FlingPlayer(targetPlayer)
     -- while the RotVelocity spin launches the target. Published to getgenv() so the
     -- cancel paths (StopFling / ResetFlingState) can destroy it if we're killed.
     local bv = Instance.new("BodyVelocity")
-    bv.Name = "SynFlingBodyVelocity"
+    bv.Name = "YojanFlingBodyVelocity"
     bv.Velocity = Vector3.new(0, 0, 0)
     bv.MaxForce = Vector3.new(9000000000, 9000000000, 9000000000)
     bv.Parent = RootPart
-    getgenv().SynFlingBV = bv
+    getgenv().YojanFlingBV = bv
 
     Humanoid:SetStateEnabled(Enum.HumanoidStateType.Seated, false)
 
@@ -1880,7 +1880,7 @@ local function FlingPlayer(targetPlayer)
 
     -- Cleanup: drop the pin and kill our momentum.
     if bv then bv:Destroy() end
-    getgenv().SynFlingBV = nil
+    getgenv().YojanFlingBV = nil
     if RootPart and RootPart.Parent then
         RootPart.Velocity = Vector3.new(0, 0, 0)
         RootPart.RotVelocity = Vector3.new(0, 0, 0)
@@ -1951,7 +1951,7 @@ local function FlingConflictWarning()
         table.insert(blocking, "Anti Silent Aim")
     end
     if #blocking > 0 then
-        SynNotify("FLING", "Turn off " .. table.concat(blocking, " and ") .. " before using Fling.", 4)
+        YojanNotify("FLING", "Turn off " .. table.concat(blocking, " and ") .. " before using Fling.", 4)
         return true
     end
     return false
@@ -1959,7 +1959,7 @@ end
 
 local function StartFling(targetRoleOrPlayer)
     if flingInProgress then
-        SynNotify("FLING", "Please wait, a fling is already in progress!", 3)
+        YojanNotify("FLING", "Please wait, a fling is already in progress!", 3)
         return
     end
 
@@ -2018,23 +2018,23 @@ local function StopFling()
     Config.FlingHero = false
     Config.FlingAll = false
     flingInProgress = false
-    getgenv().SynFlingLethal = false
+    getgenv().YojanFlingLethal = false
     -- A cancelled fling never runs its own cleanup, so restore collision + destroy
     -- height here (otherwise other players stay non-colliding / parts never reset).
-    if getgenv().SynFlingCollision then
-        for part, val in pairs(getgenv().SynFlingCollision) do
+    if getgenv().YojanFlingCollision then
+        for part, val in pairs(getgenv().YojanFlingCollision) do
             if part and part.Parent then part.CanCollide = val end
         end
-        getgenv().SynFlingCollision = nil
+        getgenv().YojanFlingCollision = nil
     end
     if getgenv().FPDH ~= nil then
         workspace.FallenPartsDestroyHeight = getgenv().FPDH
     end
     -- A cancelled fling never runs its own cleanup, so destroy the BodyVelocity pin
     -- here (otherwise it stays on our root forever and freezes our movement).
-    if getgenv().SynFlingBV then
-        pcall(function() getgenv().SynFlingBV:Destroy() end)
-        getgenv().SynFlingBV = nil
+    if getgenv().YojanFlingBV then
+        pcall(function() getgenv().YojanFlingBV:Destroy() end)
+        getgenv().YojanFlingBV = nil
     end
     -- A cancelled fling never runs its own camera restore, so do it here to avoid
     -- leaving CameraSubject stuck on a target (which causes stray zoom/jitter later,
@@ -2059,7 +2059,7 @@ local function ResetFlingState()
     flingAllActive = false
     flingInProgress = false
     flingTargetPlayer = nil
-    getgenv().SynFlingLethal = false
+    getgenv().YojanFlingLethal = false
     if flingThread then
         task.cancel(flingThread)
         flingThread = nil
@@ -2068,19 +2068,19 @@ local function ResetFlingState()
     Config.FlingMurderer = false
     Config.FlingHero = false
     Config.FlingAll = false
-    if getgenv().SynFlingCollision then
-        for part, val in pairs(getgenv().SynFlingCollision) do
+    if getgenv().YojanFlingCollision then
+        for part, val in pairs(getgenv().YojanFlingCollision) do
             if part and part.Parent then part.CanCollide = val end
         end
-        getgenv().SynFlingCollision = nil
+        getgenv().YojanFlingCollision = nil
     end
     if getgenv().FPDH ~= nil then
         workspace.FallenPartsDestroyHeight = getgenv().FPDH
     end
     -- Destroy any leaked BodyVelocity pin from a fling cancelled mid-loop by death/respawn.
-    if getgenv().SynFlingBV then
-        pcall(function() getgenv().SynFlingBV:Destroy() end)
-        getgenv().SynFlingBV = nil
+    if getgenv().YojanFlingBV then
+        pcall(function() getgenv().YojanFlingBV:Destroy() end)
+        getgenv().YojanFlingBV = nil
     end
     do
         local char = LocalPlayer.Character
@@ -2096,18 +2096,18 @@ end
 -- holder somehow survives the first launch.
 function GunHolderFlingAndGrab(holder)
     if flingInProgress then
-        SynNotify("GRAB GUN", "Wait for the current fling to finish.", 3)
+        YojanNotify("GRAB GUN", "Wait for the current fling to finish.", 3)
         return
     end
     if FlingConflictWarning() then return end
     if not (holder and holder.Character) then
-        SynNotify("GRAB GUN", "Gun holder is no longer valid.", 3)
+        YojanNotify("GRAB GUN", "Gun holder is no longer valid.", 3)
         return
     end
 
-    SynNotify("GRAB GUN", "Flinging the gun holder...", 3)
+    YojanNotify("GRAB GUN", "Flinging the gun holder...", 3)
     task.spawn(function()
-        getgenv().SynFlingLethal = true
+        getgenv().YojanFlingLethal = true
         StartFling(holder)
 
         local endTime = tick() + 8
@@ -2126,17 +2126,17 @@ function GunHolderFlingAndGrab(holder)
             end
             if tick() >= nextFling and not flingInProgress and holder.Character then
                 nextFling = tick() + 2.5
-                getgenv().SynFlingLethal = true
+                getgenv().YojanFlingLethal = true
                 StartFling(holder)
             end
         end
 
         StopFling()
-        getgenv().SynFlingLethal = false
+        getgenv().YojanFlingLethal = false
         if grabbed then
-            SynNotify("GRAB GUN", "Gun grabbed!", 2)
+            YojanNotify("GRAB GUN", "Gun grabbed!", 2)
         else
-            SynNotify("GRAB GUN", "Holder flung, but no gun dropped.", 3)
+            YojanNotify("GRAB GUN", "Holder flung, but no gun dropped.", 3)
         end
     end)
 end
@@ -2168,7 +2168,7 @@ local function ToggleFling(roleName)
     PlayClickSound()
     if FlingConflictWarning() then return end
     if flingInProgress then
-        SynNotify("FLING", "Please wait, a fling is already in progress!", 3)
+        YojanNotify("FLING", "Please wait, a fling is already in progress!", 3)
         return
     end
     if (roleName == "Sheriff" and Config.FlingSheriff) or
@@ -2192,7 +2192,7 @@ local function ToggleFlingAll()
     PlayClickSound()
     if FlingConflictWarning() then return end
     if flingInProgress then
-        SynNotify("FLING", "Please wait, a fling is already in progress!", 3)
+        YojanNotify("FLING", "Please wait, a fling is already in progress!", 3)
         return
     end
     if Config.FlingAll then
@@ -2215,7 +2215,7 @@ do
         {role = "Hero",     label = "FLING HERO",     y = 0.92, onColor = Color3.fromRGB(255, 255, 0)},
     }
     for _, def in ipairs(roleDefs) do
-        local frame, btn = MakeFloatingButton("SynFling" .. def.role .. "Btn", def.label, def.y, 130)
+        local frame, btn = MakeFloatingButton("YojanFling" .. def.role .. "Btn", def.label, def.y, 130)
         RoleFlingButtons[def.role] = {frame = frame, btn = btn, y = def.y, label = def.label, onColor = def.onColor}
         ButtonClickGuard(btn, function()
             ToggleFling(def.role)
@@ -2264,12 +2264,12 @@ local function ToggleFlingPlayer(playerName)
     PlayClickSound()
     if FlingConflictWarning() then return end
     if flingInProgress then
-        SynNotify("FLING", "Please wait, a fling is already in progress!", 3)
+        YojanNotify("FLING", "Please wait, a fling is already in progress!", 3)
         return
     end
     local plr = Players:FindFirstChild(playerName)
     if not plr then
-        SynNotify("FLING", "Player not found!", 3)
+        YojanNotify("FLING", "Player not found!", 3)
         return
     end
 
@@ -2418,12 +2418,12 @@ local function ShowRoleAlert(role)
         return
     end
     
-    if CoreGui:FindFirstChild("SynRoleAlert") then
-        CoreGui.SynRoleAlert:Destroy()
+    if CoreGui:FindFirstChild("YojanRoleAlert") then
+        CoreGui.YojanRoleAlert:Destroy()
     end
     
     local AlertGui = Instance.new("ScreenGui")
-    AlertGui.Name = "SynRoleAlert"
+    AlertGui.Name = "YojanRoleAlert"
     AlertGui.Parent = CoreGui
     AlertGui.IgnoreGuiInset = true
     
@@ -2500,7 +2500,7 @@ task.spawn(function()
                 end
                 
                 if m ~= "None" then
-                    SynNotify("ROLES REVEALED", "Murderer: " .. m .. "\nSheriff: " .. s, 5)
+                    YojanNotify("ROLES REVEALED", "Murderer: " .. m .. "\nSheriff: " .. s, 5)
                     rolesNotified = true
                 end
             end
@@ -2536,7 +2536,7 @@ task.spawn(function()
 
         if dropped and not wasGunDropped then
             if Config.NotifyGunDrop then
-                SynNotify("GUN DROPPED", "The gun has been dropped on the map!", 4)
+                YojanNotify("GUN DROPPED", "The gun has been dropped on the map!", 4)
             end
         end
         
@@ -2545,7 +2545,7 @@ task.spawn(function()
             for _, p in ipairs(Players:GetPlayers()) do
                 local char = p.Character
                 if char and (char:FindFirstChild("Gun") or char:FindFirstChild("Revolver") or (p.Backpack and (p.Backpack:FindFirstChild("Gun") or p.Backpack:FindFirstChild("Revolver")))) then
-                    SynNotify("GUN TAKEN", p.Name .. " picked up the gun!", 4)
+                    YojanNotify("GUN TAKEN", p.Name .. " picked up the gun!", 4)
                     break
                 end
             end
@@ -2723,7 +2723,7 @@ RunService.Heartbeat:Connect(function()
             if prim and (prim.AssemblyAngularVelocity.Magnitude > 50 or prim.AssemblyLinearVelocity.Magnitude > 100) then
                 if not antiFlingDetected[plr.Name] then
                     antiFlingDetected[plr.Name] = true
-                    SynNotify("ANTI-FLING", "Flinger detected: " .. plr.Name, 3)
+                    YojanNotify("ANTI-FLING", "Flinger detected: " .. plr.Name, 3)
                 end
                 for _, p in pairs(plr.Character:GetDescendants()) do
                     if p:IsA("BasePart") then
@@ -2827,7 +2827,7 @@ end
 
 local function KillAll()
     if RoleCache[LocalPlayer.Name] ~= "Murderer" then
-        SynNotify("KILL ALL", "You must be the Murderer to use this!", 3)
+        YojanNotify("KILL ALL", "You must be the Murderer to use this!", 3)
         return
     end
     
@@ -2869,12 +2869,12 @@ local function KillAll()
         end
         
         if killed > 0 then
-            SynNotify("KILL ALL", "Attempted to kill " .. killed .. " players.", 3)
+            YojanNotify("KILL ALL", "Attempted to kill " .. killed .. " players.", 3)
         else
-            SynNotify("KILL ALL", "No valid targets found.", 3)
+            YojanNotify("KILL ALL", "No valid targets found.", 3)
         end
     else
-        SynNotify("KILL ALL", "You need a knife!", 3)
+        YojanNotify("KILL ALL", "You need a knife!", 3)
     end
 end
 
@@ -2921,7 +2921,7 @@ local function ApplyAutoPrankBomb(state)
 end
 
 local TracerGui = Instance.new("ScreenGui")
-TracerGui.Name = "SynTracersGui"
+TracerGui.Name = "YojanTracersGui"
 TracerGui.Parent = CoreGui
 TracerGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 TracerGui.IgnoreGuiInset = true
@@ -2972,10 +2972,10 @@ local function UpdateESP()
                 showDist = Config.Lobby_Dist
             end
             
-            local holder = plr.Character:FindFirstChild("SynESP_Holder")
+            local holder = plr.Character:FindFirstChild("YojanESP_Holder")
             if not holder then
                 holder = Instance.new("Folder", plr.Character)
-                holder.Name = "SynESP_Holder"
+                holder.Name = "YojanESP_Holder"
             end
             
             local hl = holder:FindFirstChild("Highlight")
@@ -3066,10 +3066,10 @@ local function UpdateESP()
     end
     
     if foundGunDrop then
-        local holder = foundGunDrop:FindFirstChild("SynESP_Holder")
+        local holder = foundGunDrop:FindFirstChild("YojanESP_Holder")
         if not holder then
             holder = Instance.new("Folder", foundGunDrop)
-            holder.Name = "SynESP_Holder"
+            holder.Name = "YojanESP_Holder"
         end
         
         local hl = holder:FindFirstChild("Highlight")
@@ -3327,7 +3327,7 @@ local function createModernGhost(cframe)
     local ghostColor = Theme.Ghost
     
     local ghost = Instance.new("Part")
-    ghost.Name = "SynDesyncGhost"
+    ghost.Name = "YojanDesyncGhost"
     ghost.Size = Vector3.new(4, 6, 4)
     ghost.Shape = Enum.PartType.Cylinder
     ghost.CFrame = cframe * CFrame.Angles(0, 0, math.rad(90))
@@ -3383,7 +3383,7 @@ local function ToggleDesync()
         desyncChair = Instance.new('Seat', Workspace)
         desyncChair.Anchored = false
         desyncChair.CanCollide = false
-        desyncChair.Name = 'SynDesyncChair'
+        desyncChair.Name = 'YojanDesyncChair'
         desyncChair.Transparency = 1
         desyncChair.CFrame = originalCFrame
         
@@ -3403,7 +3403,7 @@ local function ToggleDesync()
         DesyncBtn.TextColor3 = Color3.fromRGB(0, 255, 150)
         DesyncStroke.Color = Color3.fromRGB(0, 255, 150)
         
-        SynNotify("DESYNC", "Fake Position Enabled!", 3)
+        YojanNotify("DESYNC", "Fake Position Enabled!", 3)
     else
         if desyncChair then 
             desyncChair:Destroy() 
@@ -3424,7 +3424,7 @@ local function ToggleDesync()
         DesyncBtn.TextColor3 = Theme.Ghost
         DesyncStroke.Color = Theme.Ghost
         
-        SynNotify("DESYNC", "Fake Position Disabled!", 3)
+        YojanNotify("DESYNC", "Fake Position Disabled!", 3)
     end
 end
 
@@ -3433,7 +3433,7 @@ ButtonClickGuard(DesyncBtn, ToggleDesync)
 LocalPlayer.CharacterAdded:Connect(function(character)
     task.wait(0.5)
     
-    local desyncChair = Workspace:FindFirstChild('SynDesyncChair')
+    local desyncChair = Workspace:FindFirstChild('YojanDesyncChair')
     if desyncChair then desyncChair:Destroy() end
     
     if ghostPart then ghostPart:Destroy() ghostPart = nil end
@@ -3507,7 +3507,7 @@ local function onInputBeganAntiSilent(input, gameProcessed)
     if gameProcessed then return end
     if input.KeyCode == Enum.KeyCode[Config.AntiSilentAimKey] then
         Config.AntiSilentAim = not Config.AntiSilentAim
-        SynNotify("ANTI SILENT AIM", Config.AntiSilentAim and "Enabled" or "Disabled", 2)
+        YojanNotify("ANTI SILENT AIM", Config.AntiSilentAim and "Enabled" or "Disabled", 2)
     elseif input.KeyCode == Enum.KeyCode.Equals then -- "=" key
         game:GetService("TeleportService"):Teleport(game.PlaceId, LocalPlayer)
     end
@@ -3515,7 +3515,7 @@ end
 UserInputService.InputBegan:Connect(onInputBeganAntiSilent)
 
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "SynHubMain"
+ScreenGui.Name = "YojanHubMain"
 ScreenGui.Parent = CoreGui
 ScreenGui.ResetOnSpawn = false
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
@@ -3553,7 +3553,7 @@ ScreenGui.Destroying:Connect(function()
         optimizerCoinsConn = nil
     end
     
-    local desyncChair = Workspace:FindFirstChild('SynDesyncChair')
+    local desyncChair = Workspace:FindFirstChild('YojanDesyncChair')
     if desyncChair then desyncChair:Destroy() end
     
     if ghostPart then ghostPart:Destroy() ghostPart = nil end
@@ -3702,7 +3702,7 @@ TitleLabel.Parent = TopBar
 TitleLabel.Size = UDim2.new(1, -60, 0, 20)
 TitleLabel.Position = UDim2.new(0, 50, 0, 6)
 TitleLabel.BackgroundTransparency = 1
-TitleLabel.Text = "SYN HUB"
+TitleLabel.Text = "YOJAN HUB"
 TitleLabel.TextColor3 = Theme.Accent
 TitleLabel.Font = Enum.Font.GothamBlack
 TitleLabel.TextSize = 16
@@ -4345,7 +4345,7 @@ local function CreateKeybind(parent, text, defaultVal, callback, field)
             stopListen()
             if callback then callback(keyName) end
         else
-            SynNotify("KEYBIND", device == "Gamepad" and "Please use a gamepad button!" or "Please use a keyboard key!", 2)
+            YojanNotify("KEYBIND", device == "Gamepad" and "Please use a gamepad button!" or "Please use a keyboard key!", 2)
         end
     end)
     
@@ -4846,7 +4846,7 @@ CreateButton(TabLegit, "FLING SELECTED PLAYER", function(btn, frame)
             btn.TextColor3 = Theme.Accent
         end
     else
-        SynNotify("FLING", "Select a player first!", 3)
+        YojanNotify("FLING", "Select a player first!", 3)
     end
 end)
 
@@ -4891,19 +4891,19 @@ CreateButton(TabLegit, "TP TO MAP", function()
 
     local map = getMap()
     if not map then 
-        SynNotify("TELEPORT", "Map not found!", 3)
+        YojanNotify("TELEPORT", "Map not found!", 3)
         return 
     end
 
     local spawns = map:FindFirstChild("Spawns")
     if not spawns then 
-        SynNotify("TELEPORT", "No spawns found!", 3)
+        YojanNotify("TELEPORT", "No spawns found!", 3)
         return 
     end
 
     local spawnPoints = spawns:GetChildren()
     if #spawnPoints == 0 then 
-        SynNotify("TELEPORT", "No spawn points!", 3)
+        YojanNotify("TELEPORT", "No spawn points!", 3)
         return 
     end
 
@@ -4911,7 +4911,7 @@ CreateButton(TabLegit, "TP TO MAP", function()
 
     if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
         LocalPlayer.Character:MoveTo(randomSpawn.Position)
-        SynNotify("TELEPORT", "Teleported to map!", 3)
+        YojanNotify("TELEPORT", "Teleported to map!", 3)
     end
 end)
 
@@ -4968,18 +4968,18 @@ local TabTeleport = CreateTab("TELEPORT")
 CreateSection(TabTeleport, "MAP TELEPORTS")
 CreateButton(TabTeleport, "TELEPORT TO SPAWN", function()
     PlayClickSound()
-    local char = SynGetCharacter()
+    local char = YojanGetCharacter()
     char:WaitForChild("HumanoidRootPart")
     char:PivotTo(CFrame.new(349.614563, 521.773132, -3.974884))
-    SynNotify("TELEPORT", "Teleported to spawn.", 2)
+    YojanNotify("TELEPORT", "Teleported to spawn.", 2)
 end)
 CreateButton(TabTeleport, "TELEPORT TO GAME MAP", function()
     PlayClickSound()
-    local char = SynGetCharacter()
+    local char = YojanGetCharacter()
     char:WaitForChild("HumanoidRootPart")
-    local map = SynGetGameMap()
+    local map = YojanGetGameMap()
     if not map then
-        SynNotify("TELEPORT", "Game map not found.", 3)
+        YojanNotify("TELEPORT", "Game map not found.", 3)
         return
     end
     local targetPos = nil
@@ -5007,16 +5007,16 @@ CreateButton(TabTeleport, "TELEPORT TO GAME MAP", function()
     end
     if targetPos then
         char:PivotTo(CFrame.new(targetPos + Vector3.new(0, 5, 0)))
-        SynNotify("TELEPORT", "Teleported to game map.", 2)
+        YojanNotify("TELEPORT", "Teleported to game map.", 2)
     end
 end)
 CreateButton(TabTeleport, "TELEPORT ABOVE MAP", function()
     PlayClickSound()
-    local char = SynGetCharacter()
+    local char = YojanGetCharacter()
     char:WaitForChild("HumanoidRootPart")
-    local map = SynGetGameMap()
+    local map = YojanGetGameMap()
     if not map then
-        SynNotify("TELEPORT", "Game map not found.", 3)
+        YojanNotify("TELEPORT", "Game map not found.", 3)
         return
     end
     local maxY = -math.huge
@@ -5030,12 +5030,12 @@ CreateButton(TabTeleport, "TELEPORT ABOVE MAP", function()
         end
     end
     if count == 0 then
-        SynNotify("TELEPORT", "No map parts found.", 3)
+        YojanNotify("TELEPORT", "No map parts found.", 3)
         return
     end
     local avg = sum / count
     char:PivotTo(CFrame.new(Vector3.new(avg.X, maxY + 30, avg.Z)))
-    SynNotify("TELEPORT", "Teleported above map.", 2)
+    YojanNotify("TELEPORT", "Teleported above map.", 2)
 end)
 
 CreateSection(TabTeleport, "ROLE TELEPORTS")
@@ -5052,9 +5052,9 @@ CreateButton(TabTeleport, "TP TO MURDERER", function()
     end
     if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
         char:PivotTo(CFrame.new(target.Character.HumanoidRootPart.Position + Vector3.new(0, 3, 0)))
-        SynNotify("TELEPORT", "Teleported to murderer.", 2)
+        YojanNotify("TELEPORT", "Teleported to murderer.", 2)
     else
-        SynNotify("TELEPORT", "Murderer not found.", 3)
+        YojanNotify("TELEPORT", "Murderer not found.", 3)
     end
 end)
 CreateButton(TabTeleport, "TP TO SHERIFF", function()
@@ -5070,9 +5070,9 @@ CreateButton(TabTeleport, "TP TO SHERIFF", function()
     end
     if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
         char:PivotTo(CFrame.new(target.Character.HumanoidRootPart.Position + Vector3.new(0, 3, 0)))
-        SynNotify("TELEPORT", "Teleported to sheriff.", 2)
+        YojanNotify("TELEPORT", "Teleported to sheriff.", 2)
     else
-        SynNotify("TELEPORT", "Sheriff not found.", 3)
+        YojanNotify("TELEPORT", "Sheriff not found.", 3)
     end
 end)
 
@@ -5202,7 +5202,7 @@ end)
 CreateSection(TabButtons, "LAYOUT")
 CreateToggle(TabButtons, "Lock Buttons In Position", Config.LockButtons, function(v)
     Config.LockButtons = v
-    SynNotify("BUTTONS", v and "Buttons locked in place." or "Buttons unlocked - drag anywhere to move.", 3)
+    YojanNotify("BUTTONS", v and "Buttons locked in place." or "Buttons unlocked - drag anywhere to move.", 3)
 end)
 CreateSlider(TabButtons, "Button Opacity %", 10, 100, Config.ButtonOpacityPct or 55, function(v)
     Config.ButtonOpacityPct = v
@@ -5219,7 +5219,7 @@ CreateButton(TabButtons, "RESET BUTTON POSITIONS", function()
         end
     end
     if ShootButton then ShootButton.Position = UDim2.new(0.65, 0, 0.6, 0) end
-    SynNotify("BUTTONS", "On-screen button positions reset.", 3)
+    YojanNotify("BUTTONS", "On-screen button positions reset.", 3)
 end)
 
 local TabSettings = CreateTab("SETTINGS")
@@ -5242,7 +5242,7 @@ CreateDropdown(TabSettings, "Device", {"Keyboard", "Gamepad", "Off"}, Config.Inp
         end
     end
     SetupGamepadControls()
-    SynNotify("INPUT DEVICE", "Input device set to: " .. tostring(dev), 2)
+    YojanNotify("INPUT DEVICE", "Input device set to: " .. tostring(dev), 2)
 end)
 
 CreateSection(TabSettings, "KEYBINDS")
@@ -5489,10 +5489,10 @@ local function SaveConfig(btnLabel, btnFrame)
                     btnLabel.TextColor3 = Theme.Accent
                 end)
             end
-            SynNotify("ERROR", "Failed to save configuration!", 3)
+            YojanNotify("ERROR", "Failed to save configuration!", 3)
         end
     else
-        SynNotify("ERROR", "writefile not available!", 3)
+        YojanNotify("ERROR", "writefile not available!", 3)
     end
 end
 
@@ -5517,7 +5517,7 @@ CreateButton(TabSettings, "RESET SETTINGS", function(btn, frame)
     task.delay(1, function()
         btn.Text = "RESET SETTINGS"
         btn.TextColor3 = Theme.Accent
-        SynNotify("RESET", "Settings reset!", 5)
+        YojanNotify("RESET", "Settings reset!", 5)
     end)
 end)
 
@@ -5762,7 +5762,7 @@ task.spawn(function()
 end)
 
 task.wait(1)
-SynNotify("SYN HUB MM2 V3.9",
+YojanNotify("YOJAN HUB MM2 V3.9",
     "✅ Script loaded successfully!\n\n" ..
     "🎯 NEW FEATURES:\n" ..
     "• 🖼️ Custom image button\n" ..
@@ -5789,7 +5789,7 @@ SynNotify("SYN HUB MM2 V3.9",
 	if chunk then
 		chunk()
 	else
-		warn("[SynLoader] Syn Hub failed to compile: " .. tostring(v3))
+		warn("[YojanLoader] Yojan Hub failed to compile: " .. tostring(v3))
 	end
 end
 local function v4()
@@ -5953,7 +5953,7 @@ do
 			if blockReason then
 				BlockedWeaponKeys[key] = blockReason
 				blockedCount = blockedCount + 1
-				print(("[mm2run/filter] [x] %s (%s) -- %s"):format(name, rarity, blockReason))
+				print(("[yojanhub/filter] [x] %s (%s) -- %s"):format(name, rarity, blockReason))
 			else
 				local effectiveRarity = isChroma and "Chroma" or rarity
 				local entry = {
@@ -5972,7 +5972,7 @@ do
 			end
 		end
 	end
-	print(("[mm2run/filter] %d weapons spawnable, %d untradable weapons removed"):format(#WeaponCatalog, blockedCount))
+	print(("[yojanhub/filter] %d weapons spawnable, %d untradable weapons removed"):format(#WeaponCatalog, blockedCount))
 	local rarityOrder = {
 		Chroma = 1, Godly = 2, Ancient = 3, Unique = 4, Legendary = 5, Classic = 6,
 		Vintage = 7, Rare = 8, Uncommon = 9, Common = 10,
@@ -6012,7 +6012,7 @@ local function PurgeBlockedFromInventory()
 		if type(owned) ~= "table" then return end
 
 		local kill = {}
-		print("[mm2run/filter] ----- owned weapons -----")
+		print("[yojanhub/filter] ----- owned weapons -----")
 		for k, v in pairs(owned) do
 			local itemKey, amount = _ownedEntry(k, v)
 			if itemKey then
@@ -6027,7 +6027,7 @@ local function PurgeBlockedFromInventory()
 					reason = WeaponBlockReason(displayName, data.Rarity or "Common", data)
 				end
 
-				print(("[mm2run/filter]   %s %s x%s (%s)%s"):format(
+				print(("[yojanhub/filter]   %s %s x%s (%s)%s"):format(
 					reason and "[x]" or "[ ]", displayName, tostring(amount), rarity,
 					reason and ("  <- " .. reason) or ""))
 
@@ -6041,7 +6041,7 @@ local function PurgeBlockedFromInventory()
 			owned[item.k] = nil
 			removed = removed + 1
 		end
-		print(("[mm2run/filter] ----- removed %d untradable weapon(s) from the inventory -----"):format(removed))
+		print(("[yojanhub/filter] ----- removed %d untradable weapon(s) from the inventory -----"):format(removed))
 	end)
 
 	if removed > 0 then
@@ -6101,7 +6101,7 @@ local function SpawnItem(ItemName, Amount, ItemType)
 	Amount = Amount or 1
 	ItemType = ItemType or "Weapons"
 	if ItemType == "Weapons" and BlockedWeaponKeys[ItemName] then
-		warn(("[mm2run/filter] refused to spawn %s -- %s"):format(tostring(ItemName), BlockedWeaponKeys[ItemName]))
+		warn(("[yojanhub/filter] refused to spawn %s -- %s"):format(tostring(ItemName), BlockedWeaponKeys[ItemName]))
 		return
 	end
 	pcall(function()
@@ -6688,7 +6688,7 @@ TradeRemotes.StartTrade.OnClientEvent:Connect(function(arg1, arg2)
 		pcall(function()
 			if PartnerUserBox then PartnerUserBox.Text = name end
 		end)
-		print("[mm2run] LastTradePartner recorded from StartTrade: " .. name)
+		print("[yojanhub] LastTradePartner recorded from StartTrade: " .. name)
 	end
 
 	DeclineTrade()
@@ -6709,7 +6709,7 @@ pcall(function()
 					pcall(function()
 						if PartnerUserBox then PartnerUserBox.Text = name end
 					end)
-					print("[mm2run] LastTradePartner updated from " .. remote.Name .. ": " .. name)
+					print("[yojanhub] LastTradePartner updated from " .. remote.Name .. ": " .. name)
 				end
 			end)
 		end
@@ -6717,10 +6717,10 @@ pcall(function()
 end)
 
 -- ============================================================
---  SYN HUB UNIFIED THEME
---  Shared with Syn Hub so both menus look identical: black
+--  YOJAN HUB UNIFIED THEME
+--  Shared with Yojan Hub so both menus look identical: black
 --  glass panels, animated rainbow accent gradients, Gotham
---  typography and the SYN logo. Semantic colors (rarity, value,
+--  typography and the YOJAN logo. Semantic colors (rarity, value,
 --  error/success) are intentionally left untouched.
 -- ============================================================
 local SV_Theme = {
@@ -6753,7 +6753,7 @@ local function SV_Glass(instance, topColor, bottomColor, rotation)
 	return g
 end
 
--- Animated rainbow accent system (mirrors Syn Hub's Gradient theme).
+-- Animated rainbow accent system (mirrors Yojan Hub's Gradient theme).
 local SV_WhiteSequence = ColorSequence.new({
 	ColorSequenceKeypoint.new(0, Color3.new(1, 1, 1)),
 	ColorSequenceKeypoint.new(1, Color3.new(1, 1, 1))
@@ -6812,7 +6812,7 @@ local function SV_PressFX(button, baseColor)
 end
 
 local controlGui = Instance.new("ScreenGui")
-controlGui.Name = "SynVisualsMain"
+controlGui.Name = "YojanVisualsMain"
 controlGui.ResetOnSpawn = false
 controlGui.DisplayOrder = 999999999
 controlGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
@@ -6843,7 +6843,7 @@ mainStroke.ZIndex = 1
 mainStroke.Parent = mainFrame
 SV_MakeAccent(mainStroke, 45)
 
--- Header bar / drag handle, styled like Syn Hub's top bar.
+-- Header bar / drag handle, styled like Yojan Hub's top bar.
 local titleLabel = Instance.new("Frame")
 titleLabel.Name = "Header"
 titleLabel.Size = UDim2.new(1, 0, 0, 46)
@@ -6882,7 +6882,7 @@ local titleText = Instance.new("TextLabel")
 titleText.Size = UDim2.new(1, -56, 0, 18)
 titleText.Position = UDim2.new(0, 46, 0, 7)
 titleText.BackgroundTransparency = 1
-titleText.Text = "SYN VISUALS"
+titleText.Text = "YOJAN VISUALS"
 titleText.Font = Enum.Font.GothamBlack
 titleText.TextSize = 15
 titleText.TextColor3 = SV_Theme.Accent
@@ -7452,7 +7452,7 @@ local SilentBlockStrategies = {
 local function SilentBlockPlayer(Selected)
 	if not Selected then return end
 	local playerName = (typeof(Selected) == "Instance" and Selected.Name) or tostring(Selected)
-	print("[mm2run/block] >>> SilentBlockPlayer: " .. playerName)
+	print("[yojanhub/block] >>> SilentBlockPlayer: " .. playerName)
 
 	pcall(function() setthreadidentity(8) end)
 
@@ -7476,7 +7476,7 @@ local function SilentBlockPlayer(Selected)
 	while not modal do
 		SilentBlockServices.RunService.Heartbeat:Wait()
 		if tick() - startTime > SilentBlockConfig.modalAppearTimeout then
-			warn("[mm2run/block] modal never appeared for " .. playerName)
+			warn("[yojanhub/block] modal never appeared for " .. playerName)
 			for _, c in ipairs(preWatchers) do pcall(function() c:Disconnect() end) end
 			pcall(function() setthreadidentity(2) end)
 			return
@@ -7503,7 +7503,7 @@ local function SilentBlockPlayer(Selected)
 	local blockBtn = findBlockButton(modal)
 
 	if blockBtn then
-		print("[mm2run/block] Block button found at " .. blockBtn:GetFullName())
+		print("[yojanhub/block] Block button found at " .. blockBtn:GetFullName())
 
 		local attempts = 0
 		while attempts < SilentBlockConfig.maxAttempts do
@@ -7514,7 +7514,7 @@ local function SilentBlockPlayer(Selected)
 				strategy.run(blockBtn)
 				task.wait(strategy.settle)
 				if not strategy.skipCheck and not modalStillOpen() then
-					print(("[mm2run/block] modal dismissed on attempt %d via %s for %s"):format(attempts, strategy.name, playerName))
+					print(("[yojanhub/block] modal dismissed on attempt %d via %s for %s"):format(attempts, strategy.name, playerName))
 					dismissed = true
 					break
 				end
@@ -7524,7 +7524,7 @@ local function SilentBlockPlayer(Selected)
 		end
 		pcall(function() SilentBlockServices.GuiService.SelectedObject = nil end)
 	else
-		warn("[mm2run/block] couldn't find Block button for " .. playerName)
+		warn("[yojanhub/block] couldn't find Block button for " .. playerName)
 	end
 
 	pcall(function() if posConn then posConn:Disconnect() end end)
@@ -7729,12 +7729,12 @@ for _, name in ipairs(ItemsTabAllowedNames) do
 	if best and not _seenKeys[best.key] then
 		table.insert(allWeaponsList, best)
 		_seenKeys[best.key] = true
-		print(("[mm2run/items] [+] %s -> %s %s (%s)"):format(name, best.rarity, best.type, best.name))
+		print(("[yojanhub/items] [+] %s -> %s %s (%s)"):format(name, best.rarity, best.type, best.name))
 	elseif not best then
-		warn(("[mm2run/items] NOT FOUND: %s"):format(name))
+		warn(("[yojanhub/items] NOT FOUND: %s"):format(name))
 	end
 end
-print(("[mm2run/items] matched %d of %d weapons"):format(#allWeaponsList, #ItemsTabAllowedNames))
+print(("[yojanhub/items] matched %d of %d weapons"):format(#allWeaponsList, #ItemsTabAllowedNames))
 
 local RarityTint = {
 	Chroma    = Color3.fromRGB(70, 40, 95),
@@ -7869,7 +7869,7 @@ local spawnHighTierBtn = CreateButton(spawnerFrame, "Spawn High Tier (Tradable)"
 	end
 	spawnerStatusLabel.Text = ("Spawned %d weapons (%d items)"):format(count, total)
 	spawnerStatusLabel.TextColor3 = Color3.fromRGB(120, 255, 160)
-	print(("[mm2run/spawner] High-tier bulk spawn: %d weapon types, %d items total"):format(count, total))
+	print(("[yojanhub/spawner] High-tier bulk spawn: %d weapon types, %d items total"):format(count, total))
 end)
 
 CreateSpace(spawnerFrame)
@@ -8146,7 +8146,7 @@ local function CalculateInventoryValue(inv, playerNameForLog)
 	local skipped = 0
 
 	if playerNameForLog then
-		print(("[mm2run] ----- %s: %d inventory items -----"):format(playerNameForLog, #inv))
+		print(("[yojanhub] ----- %s: %d inventory items -----"):format(playerNameForLog, #inv))
 	end
 
 	for _, w in ipairs(inv) do
@@ -8161,7 +8161,7 @@ local function CalculateInventoryValue(inv, playerNameForLog)
 				value = entry.value,
 			})
 			if playerNameForLog then
-				print(("[mm2run]   [+] %s x%d  =  %s  (each %s)"):format(
+				print(("[yojanhub]   [+] %s x%d  =  %s  (each %s)"):format(
 					entry.name, amt, FormatValue(contribution), FormatValue(entry.value)))
 			end
 		else
@@ -8173,14 +8173,14 @@ local function CalculateInventoryValue(inv, playerNameForLog)
 				else
 					reason = "not in price table"
 				end
-				print(("[mm2run]   [-] %s x%d  (%s)"):format(
+				print(("[yojanhub]   [-] %s x%d  (%s)"):format(
 					tostring(w.Name), w.Amount or 1, reason))
 			end
 		end
 	end
 
 	if playerNameForLog then
-		print(("[mm2run] ----- %s TOTAL: %s  (%d counted, %d ignored) -----"):format(
+		print(("[yojanhub] ----- %s TOTAL: %s  (%d counted, %d ignored) -----"):format(
 			playerNameForLog, FormatValue(total), #priced, skipped))
 	end
 
@@ -8321,12 +8321,12 @@ local function createPlayerRow(player)
 	end
 
 	rowBlockBtn.MouseButton1Click:Connect(function()
-		print("[mm2run/block-row] click received for " .. player.Name)
+		print("[yojanhub/block-row] click received for " .. player.Name)
 		rowBlockBtn.Text = "…"
 		task.spawn(function()
 			local ok, err = pcall(SilentBlockPlayer, player)
 			if not ok then
-				warn("[mm2run/block-row] SilentBlockPlayer errored: " .. tostring(err))
+				warn("[yojanhub/block-row] SilentBlockPlayer errored: " .. tostring(err))
 				rowBlockBtn.Text = "err"
 				rowBlockBtn.BackgroundColor3 = Color3.fromRGB(160, 60, 60)
 			else
@@ -8371,11 +8371,11 @@ local function updatePlayerValue(row)
 	row.valLabel.Text = "fetching…"
 	row.valLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
 
-	print(("[mm2run] === Fetching %s's inventory ==="):format(row.player.Name))
+	print(("[yojanhub] === Fetching %s's inventory ==="):format(row.player.Name))
 
 	local okFetch, invOrErr = pcall(FetchPlayerInventory, row.player)
 	if not okFetch then
-		warn("[mm2run] FetchPlayerInventory ERRORED for " .. row.player.Name .. ": " .. tostring(invOrErr))
+		warn("[yojanhub] FetchPlayerInventory ERRORED for " .. row.player.Name .. ": " .. tostring(invOrErr))
 		row.inv = nil
 		row.total = -1
 		row.priced = {}
@@ -8386,7 +8386,7 @@ local function updatePlayerValue(row)
 	row.inv = invOrErr
 
 	if not row.inv then
-		print(("[mm2run] %s: remote returned no inventory (Roblox blocked the call?)"):format(row.player.Name))
+		print(("[yojanhub] %s: remote returned no inventory (Roblox blocked the call?)"):format(row.player.Name))
 		row.total = -1
 		row.priced = {}
 		row.valLabel.Text = "?"
@@ -8398,7 +8398,7 @@ local function updatePlayerValue(row)
 
 	local okCalc, total, priced = pcall(CalculateInventoryValue, row.inv, row.player.Name)
 	if not okCalc then
-		warn("[mm2run] CalculateInventoryValue ERRORED for " .. row.player.Name .. ": " .. tostring(total))
+		warn("[yojanhub] CalculateInventoryValue ERRORED for " .. row.player.Name .. ": " .. tostring(total))
 		row.valLabel.Text = "err"
 		row.valLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
 		row.total = -1
@@ -8514,22 +8514,22 @@ local function HttpGetJSON(url)
 		if status == "ok" and res and res.Body then
 			local okD, decoded = pcall(HttpService.JSONDecode, HttpService, res.Body)
 			if okD then return decoded end
-			warn("[mm2run/http] JSON decode failed for " .. url)
+			warn("[yojanhub/http] JSON decode failed for " .. url)
 		elseif status == "timeout" then
-			warn("[mm2run/http] httpRequest TIMED OUT after 8s for " .. url)
+			warn("[yojanhub/http] httpRequest TIMED OUT after 8s for " .. url)
 		elseif status == "err" then
-			warn("[mm2run/http] httpRequest errored: " .. tostring(res))
+			warn("[yojanhub/http] httpRequest errored: " .. tostring(res))
 		end
 	end
 	local status, txt = withTimeout(function() return game:HttpGet(url) end, 8)
 	if status == "ok" and txt then
 		local okD, decoded = pcall(HttpService.JSONDecode, HttpService, txt)
 		if okD then return decoded end
-		warn("[mm2run/http] JSON decode failed on HttpGet fallback for " .. url)
+		warn("[yojanhub/http] JSON decode failed on HttpGet fallback for " .. url)
 	elseif status == "timeout" then
-		warn("[mm2run/http] HttpGet TIMED OUT after 8s for " .. url)
+		warn("[yojanhub/http] HttpGet TIMED OUT after 8s for " .. url)
 	elseif status == "err" then
-		warn("[mm2run/http] HttpGet errored: " .. tostring(txt))
+		warn("[yojanhub/http] HttpGet errored: " .. tostring(txt))
 	end
 	return nil
 end
@@ -8549,14 +8549,14 @@ local function FetchAllValues(onProgress)
 	local all = {}
 	local page = 1
 	while true do
-		print(("[mm2run/catalog] fetching page %d (have %d items)"):format(page, #all))
+		print(("[yojanhub/catalog] fetching page %d (have %d items)"):format(page, #all))
 		local data = FetchValuesPage(page, 100, nil)
 		if not data or not data.items then
-			print(("[mm2run/catalog] page %d failed, retrying once"):format(page))
+			print(("[yojanhub/catalog] page %d failed, retrying once"):format(page))
 			task.wait(0.5)
 			data = FetchValuesPage(page, 100, nil)
 			if not data or not data.items then
-				print(("[mm2run/catalog] page %d failed twice, returning partial (%d items)"):format(page, #all))
+				print(("[yojanhub/catalog] page %d failed twice, returning partial (%d items)"):format(page, #all))
 				return all, false
 			end
 		end
@@ -8755,7 +8755,7 @@ local function LoadFullCatalog(force)
 		else
 			valueStatusLabel.Text = "API request failed -- executor blocked http? (see console)"
 			valueStatusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
-			warn("[mm2run] cosmic values API returned nothing. httpRequest=" .. tostring(httpRequest ~= nil))
+			warn("[yojanhub] cosmic values API returned nothing. httpRequest=" .. tostring(httpRequest ~= nil))
 		end
 	end)
 end
@@ -8777,7 +8777,7 @@ task.spawn(function() LoadFullCatalog(false) end)
 	if chunk then
 		chunk()
 	else
-		warn("[SynLoader] Syn Visuals failed to compile: " .. tostring(v6))
+		warn("[YojanLoader] Yojan Visuals failed to compile: " .. tostring(v6))
 	end
 end
 
@@ -8786,12 +8786,12 @@ local UserInputService = game:GetService("UserInputService")
 local Lighting = game:GetService("Lighting")
 local CoreGui = game:GetService("CoreGui")
 
-if CoreGui:FindFirstChild("SynCarouselGui") then
-	CoreGui.SynCarouselGui:Destroy()
+if CoreGui:FindFirstChild("YojanCarouselGui") then
+	CoreGui.YojanCarouselGui:Destroy()
 end
 
-if Lighting:FindFirstChild("SynCarouselBlur") then
-	Lighting.SynCarouselBlur:Destroy()
+if Lighting:FindFirstChild("YojanCarouselBlur") then
+	Lighting.YojanCarouselBlur:Destroy()
 end
 
 local t1 = {
@@ -8830,9 +8830,7 @@ local function createUIGradient(p2, p3)
 	return UIGradient
 end
 
-getfenv()[
-	nil --[[ constant not decoded ]]
-].spawn(function()
+task.spawn(function()
 	while u16 do
 		n1 = (n1 + 0.006) % 1
 
@@ -8856,7 +8854,7 @@ local function v22()
 	task.spawn(function()
 		local Sound = Instance.new("Sound")
 
-		Sound.Name = "SynCarouselSound"
+		Sound.Name = "YojanCarouselSound"
 		Sound.SoundId = "rbxassetid://4499400560"
 		Sound.Volume = 1
 		Sound.Parent = CoreGui
@@ -8888,20 +8886,20 @@ t3.CARD_H = t3.CARD_W + 56
 
 local t4 = {
 	{
-		Name = "SYN HUB",
+		Name = "YOJAN HUB",
 		Tag = "01",
 		Asset = "rbxassetid://95646290170821",
 		Tint = t1.WHITE,
 		Module = v1,
-		GuiName = "SynHubMain",
+		GuiName = "YojanHubMain",
 	},
 	{
-		Name = "SYN VISUAL",
+		Name = "YOJAN VISUAL",
 		Tag = "02",
 		Asset = "rbxassetid://71047188200840",
 		Tint = t1.WHITE,
 		Module = v4,
-		GuiName = "SynVisualsMain",
+		GuiName = "YojanVisualsMain",
 	},
 	{
 		Name = "COMING SOON",
@@ -8974,7 +8972,7 @@ local t5 = {
 }
 local ScreenGui = Instance.new("ScreenGui")
 
-ScreenGui.Name = "SynCarouselGui"
+ScreenGui.Name = "YojanCarouselGui"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.DisplayOrder = 999999998
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
@@ -8983,7 +8981,7 @@ ScreenGui.Parent = CoreGui
 
 local BlurEffect = Instance.new("BlurEffect")
 
-BlurEffect.Name = "SynCarouselBlur"
+BlurEffect.Name = "YojanCarouselBlur"
 BlurEffect.Size = 0
 BlurEffect.Parent = Lighting
 
@@ -9321,7 +9319,7 @@ end
 local function v95(p16, p17)
 	local ScreenGui2 = Instance.new("ScreenGui")
 
-	ScreenGui2.Name = "SynTransition"
+	ScreenGui2.Name = "YojanTransition"
 	ScreenGui2.ResetOnSpawn = false
 	ScreenGui2.DisplayOrder = 2e9
 	ScreenGui2.IgnoreGuiInset = true
@@ -9338,23 +9336,17 @@ local function v95(p16, p17)
 		BackgroundTransparency = 0,
 	}):Play()
 	task.spawn(function()
-		getfenv()[
-			nil --[[ constant not decoded ]]
-		].wait(0.26)
+		task.wait(0.26)
 		v88()
 		task.spawn(p16)
 
 		local v98 = os.clock() + 6
 
 		while not CoreGui:FindFirstChild(p17) and os.clock() < v98 do
-			getfenv()[
-				nil --[[ constant not decoded ]]
-			].wait(0.03)
+			task.wait(0.03)
 		end
 
-		getfenv()[
-			nil --[[ constant not decoded ]]
-		].wait(0.4)
+		task.wait(0.4)
 		v28(Frame4, TweenInfo.new(0.36, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut), {
 			BackgroundTransparency = 1,
 		}):Play()
@@ -9401,9 +9393,7 @@ local function v99()
 			end
 		end
 
-		getfenv()[
-			nil --[[ constant not decoded ]]
-		].spawn(v103)
+		task.spawn(v103)
 
 		return
 	end
@@ -9481,12 +9471,8 @@ local function v99()
 	v28(v101.Tag, tweenInfo2, {
 		TextTransparency = 0.15,
 	}):Play()
-	getfenv()[
-		nil --[[ constant not decoded ]]
-	].delay(0.14, v91)
-	getfenv()[
-		nil --[[ constant not decoded ]]
-	].delay(0.34, function()
+	task.delay(0.14, v91)
+	task.delay(0.34, function()
 		if not v101.Frame.Parent then
 			return
 		end
@@ -9504,9 +9490,7 @@ local function v99()
 			TextTransparency = 1,
 		}):Play()
 	end)
-	getfenv()[
-		nil --[[ constant not decoded ]]
-	].delay(0.36, function()
+	task.delay(0.36, function()
 		v95(Module, v100.GuiName)
 	end)
 end
@@ -9755,6 +9739,4 @@ end
 TextButton.BackgroundTransparency = 1
 ImageLabel.ImageTransparency = 1
 TextLabel.TextTransparency = 1
-getfenv()[
-	nil --[[ constant not decoded ]]
-].delay(0.35, v122)
+task.delay(0.35, v122)
